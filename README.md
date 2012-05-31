@@ -1,4 +1,5 @@
 Welcome to CHANCE!
 
-[test](/songlab/chance/blob/master/CHANCE-Manual.pdf)
+Download the pdf manual [here](/songlab/chance/raw/master/CHANCE-Manual.pdf)
+or browse it online [here](/songlab/chance/wiki/CHANCE-Manual).
 ======
