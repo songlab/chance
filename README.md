@@ -1,4 +1,4 @@
 Welcome to CHANCE!
 
-[[CHANCE-Manual.pdf]]
+[[/blob/master/CHANCE-Manual.pdf]]
 ======
