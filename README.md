@@ -1,4 +1,4 @@
 Welcome to CHANCE!
 
-[test](/blob/master/CHANCE-Manual.pdf)
+[test](/songlab/chance/blob/master/CHANCE-Manual.pdf)
 ======
