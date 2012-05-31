@@ -1,4 +1,4 @@
 Welcome to CHANCE!
 
-[test](CHANCE-Manual.pdf)
+[test](/blob/master/CHANCE-Manual.pdf)
 ======
