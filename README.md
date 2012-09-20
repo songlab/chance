@@ -2,7 +2,7 @@ Welcome to CHANCE!
 =================
 Download the pdf manual [here](/songlab/chance/raw/master/CHANCE-Manual.pdf) or browse it online [here](/songlab/chance/wiki/CHANCE-Manual).
 =================
-Download binaries and sample data for [Linux](/songlab/chance/raw/master/CHANCE_Linux.zip), [Mac OS](/songlab/chance/raw/master/CHACNE_MacOS.zip), or [Windows](CHANCE_WINDOWS.exe).
+Download binary executables and sample data [here](https://github.com/songlab/chance/downloads).
 ========
 Visit the Song lab at [http://songlab.ucsf.edu](http://songlab.ucsf.edu/)
 =========
