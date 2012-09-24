@@ -1,0 +1,82 @@
+This tutorial is a walkthrough of how to use CHANCE's features. It refers to the files in the sample_data/
+folder available from http://songlab.ucsf.edu/CHANCE. For complete documentation see: https://github.com/songlab/chance/wiki 
+
+1. Creating a sample from a data file containing mapped reads:
+   -Click the "Create Sample" button in the middle of the CHANCE window.
+   -Navigate to the sample_data/ folder
+   -Select wgEncodeBroadHistoneH1hescH3k4me1StdAlnRep1.bam and click Open
+     (This file contains H3K4me3 ChIP-seq in HESC, reads mapped to HG19, from Broad via ENCODE.)
+   -When prompted enter the type of the file to be read (bam) and the build (hg19)
+   -When prompted enter a name for the sample.
+2. Deleting samples:
+   -Select the sample ID from the "Samples" window.
+   -Click "Delete Sample"
+3. Restoring samples from a previous session: 
+   -Click the "Restore saved samples" button
+   -Navigate to the sample_data/ directory
+   -Select broad_data.mat and click open
+    (This contains H3K4me1,2,3, H3K36me3, H3K27me3, and Input samples in HESC, from Broad via ENCODE.)
+4. Saving working samples to file:
+   (Restoring saved samples is faster than creating samples from files containing reads, so 
+    saving your working samples to file is recommended.)
+   -Click "Save samples to file"
+   -Navigate to the desired directory and enter a file name.
+   -Click save
+5. View IP strength:
+   -Select an IP sample (H1 HESC Broad H3K4me3 IP) in the "Samples:" window.
+   -Click the "View IP strength" button.
+   -Select a matching Input sample (H1 HESC Broad Input) in the drop down dialog box.
+   -CHANCE will now spawn 3 windows: a summary statement, an enrichment plot, and a second linearization plot
+    (see the documentation for interpretations of these plots, see 10. below for working with plot windows)
+6. Compare with ENCODE:
+   -Select an IP sample (H1 HESC Broad H3K4me3 IP) in the "Samples:" window.
+   -Click the "Compare with ENCODE" button.
+   -Select a matching Input sample (H1 HESC Broad Input) in the drop down dialog box.
+   -Select the transcription factor or epigenetic mark type from the drop down dialog box.
+   -CHANCE will now spawn a plot window: 
+    (see the documentation for interpretations of this plot, see 10. below for working with plot windows)
+7. Multi IP normalization:
+   -Click the "Multi IP normalization" button.
+   -Enter the number of experiments to compare in the dialog box.
+   -Select, one by one, the experiments to include in the drop down dialog box.
+   -CHANCE will now spawn 3 windows: a summary statement, a differential enrichment comparison matrix,
+    and an enrichment plot.
+    (see the documentation for interpretations of these plots, see 10. below for working with plot windows)
+8. Validate candidate regions:
+   -Select an IP sample (H1 HESC Broad H3K4me3 IP) in the "Samples:" window.
+   -Click the "Validate region list" button.
+   -Select a matching Input sample (H1 HESC Broad Input) in the drop down dialog box.
+   -Select a file containing the regions to be validated. (sample_data/gene_promoter_list.txt)
+    The file must be a plain text file with one region per line. Each line must be tab separated of the form:
+    chrom     start	 stop	   ID
+    Where chrom is a chromosome identifier matching one of the chomosome identifiers in
+    the original file of reads from which the sample was generated, for example: chr1 or chrY.
+    start and stop are integers giving the genomic coordinates where the defined region
+    starts and stops. ID is any user string which will identify the sample 
+   -CHANCE will now spawn a plot window: 
+    (see the documentation for interpretations of this plot, see 10. below for working with plot windows)
+9. View nucleotide frequency:
+   -Select a sample (H1 HESC Broad H3K4me3 IP) in the "Samples:" window.
+   -Click the "View nucleotide frequency" button.
+   -CHANCE will now spawn a 3 plot windows: the frequencies of A,C,G,T, and the frequencies of uncallable bases 
+    (see the documentation for interpretations of these plots, see 10. below for working with plot windows)
+10. Working with plot windows:
+   CHACE plots come with a vaiety of plot tools:
+   -Save: save a plot for the first time by clicking on the disk icon. Subsequent saves can be done using 
+          the "Save" or "Save As" commands on the file menu. Plots can be saved as pdf, jpg, png, eps and 
+	  several other common formats.
+   -Print: click the print icon or use the "Print" command in the file menu.
+   -Zoom/Pan: the magifying glass icons allow you to zoom in and out of the plot while the hand icon allows you to pan.
+   -Data curser: a data curser can be added to inspect particular values in the plot via the data curser icon
+11. View Phred score data:
+   -Select a sample (H1 HESC Broad H3K4me3 IP) in the "Samples:" window.
+   -Click the "View Phred score map" button.
+   -CHANCE will now spawn a plot window:
+    (see the documentation for interpretations of this plot, see 10. below for working with plot windows)
+12. View read density bias:
+   -Select a sample (H1 HESC Broad H3K4me3 IP) in the "Samples:" window.
+   -Click the "View read density bias" button.
+   -CHANCE will now spawn a plot window:
+    (see the documentation for interpretations of this plot, see 10. below for working with plot windows)
+13. Export a log of the session:
+   -Click on the "Export main output to text file" button above the "Main Output" window.

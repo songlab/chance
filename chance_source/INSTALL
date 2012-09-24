@@ -1,0 +1,39 @@
+Installation instructions:
+
+Mac OS X:
+    -Decompress the CHANCE archive
+      *Unzip the file chance_macos.zip by double clicking the chance_macos.zip icon
+      *Open the folder chance_macos, in the same location as the zip file
+    -Install MCR, the MATLAB Compiler Runtime:
+      *Unzip MCRInstaller.zip by double clicking its icon
+      *Double click InstallForMacOSX
+      *Follow the on screen instructions, keep track of the install location if you change the default
+    -To start CHANCE:  
+      *Double click the chance icon
+      *To start CHANCE from the command line:
+      	  #Navigate to the chance_macos folder
+	  #Execute ./run_chance.sh path_to_mcr, where path_to_mcr is the path to the MCR you installed
+	  	   		   		the default is /Applications/MATLAB/MATLAB_Compiler_Runtime/v717/
+    -NOTES: You can move/copy the chance icon (chance.app) to the /Applications folder or any other location if you like.
+    	    If you want to start chance from the command line the run_chance.sh needs to be in the same folder as chance.app.
+	    The first time you start CHANCE it will take a little longer than usual to start since CHANCE needs to configure the MCR.
+
+Linux:
+    -Navagate to where you downloaded chance_linux.zip
+    -Decompress the CHANCE archive
+      unzip chance_linux.zip
+      cd chance_linux
+    -Install MCR, the MATLAB Compiler Runtime:
+      unzip MCRInstaller.zip
+      sudo ./install
+      #Follow the on screen instructions, keep track of the install location if you change the default 
+    -To start CHANCE:  
+    	./run_chance.sh path_to_mcr  #where path_to_mcr is the path to the MCR you installed
+	  	   		     #the default is /usr/local/MATLAB/MATLAB_Compiler_Runtime/v717/
+    -The first time you start CHANCE it will take a little longer than usual to start since CHANCE needs to configure the MCR.
+
+Windows 7 (64bit):
+    -Double click the installer executable chance_installer.exe
+    -To start CHANCE: double click chance.exe.
+    -The first time you start CHANCE it will take a little longer than usual to start,
+      since CHANCE needs to configure the MCR.
