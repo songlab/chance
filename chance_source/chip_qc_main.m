@@ -130,18 +130,19 @@ if cncl
     set(handles.main_output,'String',t);
 else
     try
-        smp_id=set_sample_id('title','Enter sample ID:','string',sprintf(['Enter a name for the sample\n(' fname ')']));
+        smp_name=set_sample_id('title','Enter sample ID:','string',sprintf(['Enter a name for the sample\n(' fname ')']));
     catch me
-        smp_id='new_sample';
+        smp_name='new_sample';
     end
     chrs=d.keys;n=0;
     for i=1:length(chrs),n=n+sum(d(chrs{i}));end
     smp.nreads=n;smp.genome=ot.genome;
     smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred;
+    smp_id=[smp_name ' - # reads: ' num2str(n) ' - genome: ' smp.genome ' - ' fname];
     sample_data(smp_id)=smp;
     smp_strs=cellstr(get(handles.sample_list,'String'));
     if strcmp(smp_strs{1},'No sample loaded...'),smp_strs={};end
-    smp_strs{length(smp_strs)+1}=[smp_id ' - # reads: ' num2str(n) ' - genome: ' smp.genome ' - ' fname];
+    smp_strs{length(smp_strs)+1}=smp_id;
     set(handles.sample_list,'String',smp_strs);
     set(handles.load_sample,'UserData',sample_data);
     t=get(handles.main_output,'String');
@@ -159,7 +160,7 @@ sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
 smp_id=contents{get(handles.sample_list,'Value')};
-smp_id=sscanf(smp_id,'%[^-]');smp_id=smp_id(1:end-1);
+%smp_id=sscanf(smp_id,'%[^-]');smp_id=smp_id(1:end-1);
 dt=sample_data(smp_id);
 f1=figure;
 a1=gca;
@@ -171,7 +172,8 @@ plot(a1,nf.G,'r','LineWidth',3)
 plot(a1,nf.T,'y','LineWidth',3)
 set(f1,'color','w')
 set(a1,'FontName','Arial','FontSize',20)
-title(a1,[smp_id ' nucleotide frequencies'],'FontName','Arial','FontSize',20)
+stp=strfind(smp_id,' - # reads')-1;if isempty(stp),stp=min(length(smp_id),15);end
+title(a1,[smp_id(1:stp) ' nucleotide frequencies'],'FontName','Arial','FontSize',20)
 xlabel(a1,'Base position','FontName','Arial','FontSize',20)
 ylabel(a1,'Frequency','FontName','Arial','FontSize',20)
 l=legend(a1,'A','C','G','T');
@@ -182,7 +184,8 @@ a2=gca;
 plot(a2,nf.N,'b','LineWidth',3)
 set(f2,'color','w')
 set(a2,'FontName','Arial','FontSize',20)
-title(a2,['Frequency of uncallable bases in ' smp_id],'FontName','Arial','FontSize',20)
+stp=strfind(smp_id,' - # reads')-1;if isempty(stp),stp=min(length(smp_id),15);end
+title(a2,['Frequency of uncallable bases in ' smp_id(1:stp)],'FontName','Arial','FontSize',20)
 xlabel(a2,'Base position','FontName','Arial','FontSize',20)
 ylabel(a2,'Frequency','FontName','Arial','FontSize',20)
 
@@ -196,7 +199,7 @@ sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
 smp_id=contents{get(handles.sample_list,'Value')};
-smp_id=sscanf(smp_id,'%[^-]');smp_id=smp_id(1:end-1);
+%smp_id=sscanf(smp_id,'%[^-]');smp_id=smp_id(1:end-1);
 dt=sample_data(smp_id);
 ps=choose_phred();%get the phred score offset based on sequencing convention
 cs=flipud(cumsum(dt.phred));
@@ -208,7 +211,8 @@ f1=figure;a1=gca;
 heatmap(cs,1:size(cs,2),(size(cs,1)+k-p-ps):-1:(1+k-p-ps));
 set(f1,'color','w')
 set(a1,'FontName','Arial','FontSize',20)
-title(a1,[smp_id ' Phred quality score cumulative density'],'FontName','Arial','FontSize',20)
+stp=strfind(smp_id,' - # reads')-1;if isempty(stp),stp=min(length(smp_id),15);end
+title(a1,[smp_id(1:stp) ' Phred quality score cumulative density'],'FontName','Arial','FontSize',20)
 colorbar('peer',a1,'FontName','Arial')
 xlabel(a1,'Base position','FontName','Arial','FontSize',20)
 ylabel(a1,'Quality score','FontName','Arial','FontSize',20)
@@ -249,14 +253,14 @@ sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
 ip_id=contents{get(handles.sample_list,'Value')};
-ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
+%ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
 ip_data=sample_data(ip_id);
 try
     input_id=choose_sample('title','Chose Input:','string','Choose an Input (control) sample...','smp_lst',contents);
 catch me
     return
 end
-input_id=sscanf(input_id,'%[^-]');input_id=input_id(1:end-1);
+%input_id=sscanf(input_id,'%[^-]');input_id=input_id(1:end-1);
 input_data=sample_data(input_id);
 if ~strcmp(ip_data.genome,input_data.genome)
     alert('title','Genome mismatch!','String','The genomes of the IP and Input don''t match')
@@ -366,7 +370,7 @@ else
                             fd('tfbs_normal') fd('histone_normal') ...
                             fd('tfbs_cancer') fd('histone_cancer')]);
         out_str{out_idx}=t{end};out_idx=out_idx+1;
-        t{length(t)+1}=['Scaling factor: ' num2str((p*sz_ip)/(q*sz_input)) ' (scale input by this ammount)'];
+        t{length(t)+1}=['Scaling factor: ' num2str((p*sz_ip)/(q*sz_input)) ' (scale input by this amount)'];
         out_str{out_idx}=t{end};out_idx=out_idx+1;
         t{length(t)+1}=[num2str(100-100*k/m) '% of the genome is enriched for signal.'];
         out_str{out_idx}=t{end};out_idx=out_idx+1;
@@ -408,9 +412,9 @@ function comp_spectrum_Callback(hObject, eventdata, handles)
 sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
-sample_id=contents{get(handles.sample_list,'Value')};
-sample_id=sscanf(sample_id,'%[^-]');sample_id=sample_id(1:end-1);
-sample_data=sample_data(sample_id);
+smp_id=contents{get(handles.sample_list,'Value')};
+%sample_id=sscanf(sample_id,'%[^-]');sample_id=sample_id(1:end-1);
+sample_data=sample_data(smp_id);
 Smpl=[];dens=sample_data.dens;chrs=dens.keys;
 for i=1:length(chrs),Smpl=[Smpl;dens(chrs{i})];end
 [c,l]=wavedec(Smpl,15,'haar');
@@ -426,14 +430,15 @@ sim_data=poissrnd(d.random(length(Smpl),1));
 f1=figure;a1=gca;
 set(f1,'color','w');
 bar(a1,[ed_inp'/sum(ed_inp),ed_sim'/sum(ed_sim)])
-legend(a1,sample_id,'Poisson simulation')
+stp=strfind(smp_id,' - # reads')-1;if isempty(stp),stp=min(length(smp_id),15);end
+legend(a1,smp_id(1:stp),'Poisson simulation')
 set(a1,'FontName','Arial','FontSize',20)
 xlabel(a1,'Characteristic length scale in kbp','FontName','Arial','FontSize',20);
 for i=1:15,tl{i}=num2str(2^(i-1));end
 set(a1,'XTickLabel',tl)
 rotateXLabels(a1,45)
 ylabel(a1,'% of spectral energy (% of variance)','FontName','Arial','FontSize',20);
-title(a1,['Distribution of spectral energy in ' sample_id],'FontName','Arial','FontSize',20);
+title(a1,['Distribution of spectral energy in ' smp_id(1:stp)],'FontName','Arial','FontSize',20);
 
 
 
@@ -448,7 +453,7 @@ sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
 ip_id=contents{get(handles.sample_list,'Value')};
-ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
+%ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
 ip_data=sample_data(ip_id);
 if strcmpi(ip_data.genome,'hg18')
     alert('title','HG18 not supported','string','hg18 is not supported');
@@ -459,7 +464,7 @@ try
 catch me
     return
 end
-input_id=sscanf(input_id,'%[^-]');input_id=input_id(1:end-1);
+%input_id=sscanf(input_id,'%[^-]');input_id=input_id(1:end-1);
 input_data=sample_data(input_id);
 load([ip_data.genome '_sn_models.mat']);
 try
@@ -517,14 +522,14 @@ sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
 ip_id=contents{get(handles.sample_list,'Value')};
-ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
+%ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
 ip_data=sample_data(ip_id);
 try
     input_id=choose_sample('title','Chose Input:','string','Choose an Input (control) sample...','smp_lst',contents);
 catch me
     return
 end
-input_id=sscanf(input_id,'%[^-]');input_id=input_id(1:end-1);
+%input_id=sscanf(input_id,'%[^-]');input_id=input_id(1:end-1);
 input_data=sample_data(input_id);
 [p,q,ht,pval,k,m,sz_ip,sz_input,f,err]=comp_scaling_factor(ip_data.dens,input_data.dens,[0 0]);
 load('div_fdr.mat');
@@ -631,7 +636,7 @@ else
     end
     for i=1:length(kz)
         old_sample_data(kz{i})=sample_data(kz{i});
-        contents{length(contents)+1}=[kz{i} ' - # reads: ' num2str(val.nreads) ' - genome: ' val.genome ' - ' fname];
+        contents{length(contents)+1}=kz{i};
     end
     set(handles.load_sample,'UserData',old_sample_data);
     set(handles.sample_list,'String',contents);
@@ -652,9 +657,9 @@ main_data=get(handles.root_window,'UserData');
 sample_data=get(handles.load_sample,'UserData');
 if isempty(sample_data),return;end
 contents = cellstr(get(hObject,'String'));
-sample_id=contents{get(hObject,'Value')};
-sample_id=sscanf(sample_id,'%[^-]');sample_id=sample_id(1:end-1);
-smp=sample_data(sample_id);
+smp_id=contents{get(hObject,'Value')};
+%sample_id=sscanf(sample_id,'%[^-]');sample_id=sample_id(1:end-1);
+smp=sample_data(smp_id);
 if ~isfield(main_data,'chrom_lens')||~strcmp(main_data.genome,smp.genome)
     main_data.genome=smp.genome;
     load([smp.genome 'lengths.mat']); %loads chr_lens
@@ -689,7 +694,7 @@ if isempty(sample_data),return;end
 contents = cellstr(get(handles.sample_list,'String'));
 rmidx=get(handles.sample_list,'Value');
 to_rm=contents{rmidx};
-to_rm=sscanf(to_rm,'%[^-]');to_rm=to_rm(1:end-1);
+%to_rm=sscanf(to_rm,'%[^-]');to_rm=to_rm(1:end-1);
 if sample_data.isKey(to_rm),sample_data.remove(to_rm);end
 set(handles.load_sample,'UserData',sample_data);
 k=1;
@@ -705,7 +710,7 @@ else
     set(handles.sample_list,'String',cnts2);
     set(handles.sample_list,'Value',1);
     smp_id=contents{get(handles.sample_list,'Value')};
-    smp_id=sscanf(smp_id,'%[^-]');smp_id=smp_id(1:end-1);
+    %smp_id=sscanf(smp_id,'%[^-]');smp_id=smp_id(1:end-1);
     smp=sample_data(smp_id);
     if ~isfield(main_data,'chrom_lens')||~strcmp(main_data.genome,smp.genome)    
         main_data.genome=smp.genome;
@@ -732,7 +737,7 @@ for i=1:num_samples
     catch me
         return
     end
-    tmp_id=sscanf(ip_samples_id{i},'%[^-]');ip_samples_id{i}=tmp_id(1:end-1);
+    %tmp_id=sscanf(ip_samples_id{i},'%[^-]');ip_samples_id{i}=tmp_id(1:end-1);
     ip_samples{i}=sample_data(ip_samples_id{i});
     ipt=ip_samples{i};ipt=ipt.dens;
     if i==1,kz=ipt.keys;
@@ -825,7 +830,13 @@ end
 %title(ah1,'Cumulative differential enrichment','FontName','Arial','FontSize',20);
 %colorbar('peer',ah1,'FontName','Arial','FontSize',20);
 fh2=figure;ah2=gca;
-heatmap(100*diff_genom,ip_samples_id,ip_samples_id,'%2.1f%%','FontSize',30,'TickAngle',45,'ShowAllTicks',true,'Colormap','cool','TickFontSize',30);
+for i=1:length(ip_samples_id)
+    tmp_str=ip_samples_id{i};
+    stp=strfind(tmp_str,' - # reads')-1;
+    if isempty(stp),stp=min(length(tmp_str),10);end
+    ssmp_id{i}=tmp_str(1:stp);
+end
+heatmap(100*diff_genom,ssmp_id,ssmp_id,'%2.1f%%','FontSize',30,'TickAngle',45,'ShowAllTicks',true,'Colormap','cool','TickFontSize',30);
 set(fh2,'color','w');
 set(ah2,'FontName','Arial','FontSize',30);
 title(ah2,'Percent of genome differentially enriched','FontName','Arial','FontSize',30);
@@ -834,7 +845,7 @@ title(a1,'Cumulative percentage enrichment in each channel','FontName','Arial','
 xlabel(a1,'Percentage of bins','FontName','Arial','FontSize',20)
 ylabel(a1,'Percentage of tags','FontName','Arial','FontSize',20)
 lbls={'consensus'};lbl_idx=2;
-for i=1:length(ip_samples_id),lbls{lbl_idx}=ip_samples_id{i};lbl_idx=lbl_idx+1;end
+for i=1:length(ip_samples_id),lbls{lbl_idx}=ssmp_id{i};lbl_idx=lbl_idx+1;end
 legend(a1,lbls, 'Location','NorthWest')
 set(a1,'FontName','Arial','FontSize',20)
 axes(a2);text(0.5,0.5,txt_out,'FontName','Arial','HorizontalAlignment','center','FontSize',18)
