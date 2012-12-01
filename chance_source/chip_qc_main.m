@@ -455,8 +455,8 @@ contents = cellstr(get(handles.sample_list,'String'));
 ip_id=contents{get(handles.sample_list,'Value')};
 %ip_id=sscanf(ip_id,'%[^-]');ip_id=ip_id(1:end-1);
 ip_data=sample_data(ip_id);
-if strcmpi(ip_data.genome,'hg18')
-    alert('title','HG18 not supported','string','hg18 is not supported');
+if strcmpi(ip_data.genome,'hg18')|strcmpi(ip_data.genome,'tair10')
+    alert('title','Build not supported','string',[ip_data.genome ' is not supported']);
     return
 end
 try
