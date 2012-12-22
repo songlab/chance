@@ -21,10 +21,10 @@ chunk=1e6; %the number of lines to read in at a time
 
 
 try
-if strcmp(type, 'bam') %all java: see CustomBAMMethods.java for code
+if strcmp(type, 'bam')|strcmp(type,'sam') %all java: see CustomBAMMethods.java for code
     if isdeployed
-        javaaddpath(fullfile(ctfroot,'chance','sam-1.64.jar'));
-        javaaddpath(fullfile(ctfroot,'chance','custombam.jar'));
+        javaaddpath(fullfile(ctfroot,'sam-1.64.jar'));
+        javaaddpath(fullfile(ctfroot,'custombam.jar'));
     else
         javaaddpath(fullfile(pwd,'sam-1.64.jar'));
         javaaddpath(fullfile(pwd,'custombam.jar'));
@@ -117,52 +117,53 @@ elseif strcmp(type,'tagAlign')
     end
   end
   nuc_freq.A=a/nreads;nuc_freq.T=t/nreads;nuc_freq.G=g/nreads;nuc_freq.C=c/nreads;nuc_freq.N=n/nreads;
-elseif strcmp(type,'sam')
-  D{1}=textscan(f,'%c%*[^\n]',1);hlns=0;
-  if D{1}=='@',
-    while D{1}=='@',D=textscan(f,'%c%*[^\n]',1);hlns=hlns+1;end
-  end
-  D=textscan(f,'%*s%n%s%n%*s%*s%*s%*s%*s%s%s%*[^\n]',1,'Delimiter','\t','Headerlines',hlns);
-  d=containers.Map;%create a vector to hold read counts for each chromosome id found
-  seqlen=length(D{4}{:});
-  nreads=0;
-  phred_hist=zeros(127,seqlen);
-  a=zeros(1,seqlen);t=a;g=a;c=a;n=a;
-  while ~feof(f)
-    cncl=getappdata(h,'canceling');
-    if cncl,break,end
-    waitbar((k*chunk)/lns);k=k+1;
-    D=textscan(f,['%*s%n%s%n%*s%*s%*s%*s%*s%' num2str(seqlen) 'c%' num2str(seqlen) 'c%*[^\n]'],chunk,'Delimiter','\t');
-    %D=={bit_flg,chrom,start,seq,phred}
-    nreads=nreads+size(D{4},1);
+  %------------depreciated code
+  %elseif strcmp(type,'sam')
+  %D{1}=textscan(f,'%c%*[^\n]',1);hlns=0;
+  %if D{1}=='@',
+  %  while D{1}=='@',D=textscan(f,'%c%*[^\n]',1);hlns=hlns+1;end
+  %end
+  %D=textscan(f,'%*s%n%s%n%*s%*s%*s%*s%*s%s%s%*[^\n]',1,'Delimiter','\t','Headerlines',hlns);
+  %d=containers.Map;%create a vector to hold read counts for each chromosome id found
+  %seqlen=length(D{4}{:});
+  %nreads=0;
+  %phred_hist=zeros(127,seqlen);
+  %a=zeros(1,seqlen);t=a;g=a;c=a;n=a;
+  %while ~feof(f)
+  %  cncl=getappdata(h,'canceling');
+  %  if cncl,break,end
+  %  waitbar((k*chunk)/lns);k=k+1;
+  %  D=textscan(f,['%*s%n%s%n%*s%*s%*s%*s%*s%' num2str(seqlen) 'c%' num2str(seqlen) 'c%*[^\n]'],chunk,'Delimiter','\t');
+  %  %D=={bit_flg,chrom,start,seq,phred}
+  %  nreads=nreads+size(D{4},1);
     %reverse complement all negative strand reads and reverse phredscores
-    nidx=(bitget(D{1},5)==1);%1 in the fifth bit means - strand,see sam doc
-    pidx=~nidx;
-    midx=(D{4}=='A');
-    a=a+sum(midx(pidx,:));t=t+fliplr(sum(midx(nidx,:)));
-    midx=(D{4}=='T');
-    t=t+sum(midx(pidx,:));a=a+fliplr(sum(midx(nidx,:)));
-    midx=(D{4}=='G');
-    g=g+sum(midx(pidx,:));c=c+fliplr(sum(midx(nidx,:)));
-    midx=(D{4}=='C');
-    c=c+sum(midx(pidx,:));g=g+fliplr(sum(midx(nidx,:)));
-    midx=(D{4}=='N');
-    n=n+sum(midx(pidx,:))+fliplr(sum(midx(nidx,:)));
+    %  nidx=(bitget(D{1},5)==1);%1 in the fifth bit means - strand,see sam doc
+    %  pidx=~nidx;
+    %midx=(D{4}=='A');
+    %a=a+sum(midx(pidx,:));t=t+fliplr(sum(midx(nidx,:)));
+    %midx=(D{4}=='T');
+    %t=t+sum(midx(pidx,:));a=a+fliplr(sum(midx(nidx,:)));
+    %midx=(D{4}=='G');
+    %g=g+sum(midx(pidx,:));c=c+fliplr(sum(midx(nidx,:)));
+    %midx=(D{4}=='C');
+    %c=c+sum(midx(pidx,:));g=g+fliplr(sum(midx(nidx,:)));
+    %midx=(D{4}=='N');
+    %n=n+sum(midx(pidx,:))+fliplr(sum(midx(nidx,:)));
     %construct the phred qual score histogram heatmap
-    phtb=double(D{5}); %ASCII value is translated by 33 units (see SAM spec)
-    phred_hist=phred_hist+histc([phtb(pidx,:);fliplr(phtb(nidx,:))],0:126);
-    [chrs,~,J]=unique(D{2});%find all the chromosome ids in the file
-    for i=1:length(chrs)
-        if ~isempty(strfind(chrs{i},'chr'))
-            tmp_d=histc(D{3}(J==i),1:bin:(bin-mod(chr_lens(chrs{i}),bin))+chr_lens(chrs{i})+1);
-            tmp_d = tmp_d(1:length(tmp_d)-1);
-            if size(tmp_d,1)<size(tmp_d,2),tmp_d=tmp_d';end
-            if d.isKey(chrs{i}), d(chrs{i})=d(chrs{i})+ tmp_d;
-            else d(chrs{i})=tmp_d;end
-        end
-    end
-  end
-  nuc_freq.A=a/nreads;nuc_freq.T=t/nreads;nuc_freq.G=g/nreads;nuc_freq.C=c/nreads;nuc_freq.N=n/nreads;
+    %phtb=double(D{5}); %ASCII value is translated by 33 units (see SAM spec)
+    %phred_hist=phred_hist+histc([phtb(pidx,:);fliplr(phtb(nidx,:))],0:126);
+    %[chrs,~,J]=unique(D{2});%find all the chromosome ids in the file
+    %for i=1:length(chrs)
+    %    if ~isempty(strfind(chrs{i},'chr'))
+    %   tmp_d=histc(D{3}(J==i),1:bin:(bin-mod(chr_lens(chrs{i}),bin))+chr_lens(chrs{i})+1);
+    %        tmp_d = tmp_d(1:length(tmp_d)-1);
+    %        if size(tmp_d,1)<size(tmp_d,2),tmp_d=tmp_d';end
+    %        if d.isKey(chrs{i}), d(chrs{i})=d(chrs{i})+ tmp_d;
+    %        else d(chrs{i})=tmp_d;end
+    %    end
+        %end
+    %end
+  %nuc_freq.A=a/nreads;nuc_freq.T=t/nreads;nuc_freq.G=g/nreads;nuc_freq.C=c/nreads;nuc_freq.N=n/nreads;
 elseif strcmp(type,'bowtie')
   phtb=[];
   D=textscan(f,'%*s%c%s%n%s%s%*[^\n]',1,'Delimiter','\t');
@@ -209,7 +210,7 @@ delete(h);
 end %close if-else statement
 catch me
     disp(me.message)
-    
+    disp(me.stack)
     delete(h);
 end
 
