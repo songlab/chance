@@ -23,8 +23,8 @@ chunk=1e6; %the number of lines to read in at a time
 try
 if strcmp(type, 'bam')|strcmp(type,'sam') %all java: see CustomBAMMethods.java for code
     if isdeployed
-        javaaddpath(fullfile(ctfroot,'sam-1.64.jar'));
-        javaaddpath(fullfile(ctfroot,'custombam.jar'));
+        javaaddpath(fullfile(ctfroot,'chance','sam-1.64.jar'));
+        javaaddpath(fullfile(ctfroot,'chance','custombam.jar'));
     else
         javaaddpath(fullfile(pwd,'sam-1.64.jar'));
         javaaddpath(fullfile(pwd,'custombam.jar'));
@@ -210,7 +210,11 @@ delete(h);
 end %close if-else statement
 catch me
     disp(me.message)
-    disp(me.stack)
+    for i=1:length(me.stack)
+        disp(me.stack.file(i))
+        disp(me.stack.name(i))
+        disp(me.stack.line(i))
+    end
     delete(h);
 end
 
