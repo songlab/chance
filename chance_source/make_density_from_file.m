@@ -79,7 +79,7 @@ if strcmp(type,'bed')
     [chrs,~,J]=unique(D{1});%find all the chromosome ids in the file
     %create a vector to hold read counts for each chromosome id found
     for i=1:length(chrs)
-        if ~isempty(strfind(chrs{i},'chr'))
+        if ~isempty(strfind(lower(chrs{i}),'chr'))&chr_lens.isKey(lower(chrs{i}))
             tmp_d=histc(D{2}(J==i),1:bin:chr_lens(chrs{i}));
             if size(tmp_d,1)<size(tmp_d,2),tmp_d=tmp_d';end
             if d.isKey(chrs{i}), d(chrs{i})=d(chrs{i})+ tmp_d;
@@ -108,7 +108,7 @@ elseif strcmp(type,'tagAlign')
     [chrs,~,J]=unique(D{1});%find all the chromosome ids in the file
     %create a vector to hold read counts for each chromosome id found
     for i=1:length(chrs)
-        if ~isempty(strfind(chrs{i},'chr'))
+        if ~isempty(strfind(lower(chrs{i}),'chr'))&chr_lens.isKey(lower(chrs{i}))
             tmp_d=histc(D{2}(J==i),1:bin:chr_lens(chrs{i}));
             if size(tmp_d,1)<size(tmp_d,2),tmp_d=tmp_d';end
             if d.isKey(chrs{i}), d(chrs{i})=d(chrs{i})+ tmp_d;
@@ -196,7 +196,7 @@ elseif strcmp(type,'bowtie')
     phred_hist=phred_hist+histc([phtb(pidx,:);fliplr(phtb(nidx,:))],0:126);
     [chrs,~,J]=unique(D{2});%find all the chromosome ids in the file
     for i=1:length(chrs)
-        if ~isempty(strfind(chrs{i},'chr'))
+        if ~isempty(strfind(lower(chrs{i}),'chr'))&chr_lens.isKey(lower(chrs{i}))
             tmp_d=histc(D{3}(J==i),1:bin:chr_lens(chrs{i}));
             if size(tmp_d,1)<size(tmp_d,2),tmp_d=tmp_d';end
             if d.isKey(chrs{i}),d(chrs{i})=d(chrs{i})+ tmp_d;
