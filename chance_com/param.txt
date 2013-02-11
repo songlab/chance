@@ -1,0 +1,4 @@
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,test_batch1.mat,test_sample,hg19,bam
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,test_batch2.mat,test_sample,hg19,bam
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,test_batch3.mat,test_sample,hg19,bam
+

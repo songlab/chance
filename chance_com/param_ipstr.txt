@@ -1,0 +1,3 @@
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,input,ip,ipstr_test.txt,hg19,bam
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,input,ip,ipstr_test.txt,hg19,bam
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,input,ip,ipstr_test.txt,hg19,bam

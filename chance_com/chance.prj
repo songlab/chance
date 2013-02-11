@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <deployment-project plugin="plugin.deploytool" plugin-version="1.0">
-  <configuration target="target.standalone" target-name="Standalone Application" name="chance" location="/home/aaron/research/fun_genom/software/chance/chance_com" file="/home/aaron/research/fun_genom/software/chance/chance_com/chance.prj">
+  <configuration target="target.standalone" target-name="Standalone Application" name="chance" location="/home/aaron/research/fun_genom/software/chance/chance_com" file="/home/aaron/research/fun_genom/software/chance/chance_com/chance.prj" build-checksum="2772476498">
     <param.project.name>/home/aaron/research/fun_genom/software/chance/chance_com/chance.prj</param.project.name>
     <param.target.type>Standalone Application</param.target.type>
     <param.appname>chance</param.appname>
@@ -57,8 +57,18 @@
       <param.log.file />
       <param.user.defined.mcr.options />
     </unset>
-    <fileset.main />
-    <fileset.resources />
+    <fileset.main>
+      <file>${PROJECT_ROOT}/chance_com.m</file>
+    </fileset.main>
+    <fileset.resources>
+      <file>${PROJECT_ROOT}/custombam.jar</file>
+      <file>${PROJECT_ROOT}/hg18lengths.mat</file>
+      <file>${PROJECT_ROOT}/hg19lengths.mat</file>
+      <file>${PROJECT_ROOT}/make_density_from_file.m</file>
+      <file>${PROJECT_ROOT}/mm9lengths.mat</file>
+      <file>${PROJECT_ROOT}/sam-1.64.jar</file>
+      <file>${PROJECT_ROOT}/tair10lengths.mat</file>
+    </fileset.resources>
     <fileset.package />
     <build-deliverables>
       <file name="readme.txt" location="${PROJECT_ROOT}/chance/distrib" optional="true">/home/aaron/research/fun_genom/software/chance/chance_com/chance/distrib/readme.txt</file>
