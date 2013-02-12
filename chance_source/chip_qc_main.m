@@ -792,7 +792,7 @@ for i=1:num_samples
     txt_out{txt_idx}=[ip_samples_id{i} ':'];txt_idx=txt_idx+1;t{length(t)+1}=[ip_samples_id{i} ':'];
     txt_out{txt_idx}=['Scale ' ip_samples_id{i} ' by ' num2str(ip_scale(i))];txt_idx=txt_idx+1;
     t{length(t)+1}=txt_out{end};
-    if fd<=0.05
+    if fd(i)<=0.05
         txt_out{txt_idx}='Significant differential enrichment from consensus,';txt_idx=txt_idx+1;
         t{length(t)+1}=txt_out{end};
         txt_out{txt_idx}=['q-value (pFDR): ' num2str(fd(i))];txt_idx=txt_idx+1;

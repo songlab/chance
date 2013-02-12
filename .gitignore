@@ -8,3 +8,14 @@ chance_com/ipstr_test3.txt
 chance_com/param_ipstr.txt
 distrib/
 src/
+chance_com/param.txt
+chance_com/param_ipstr.txt
+chance_com/test.mat
+chance_com/test_batch1.mat
+chance_com/test_batch2.mat
+chance_com/test_batch3.mat
+chance_com/ipstr_test_mat.txt
+chance_com/multi_test_mat.txt
+chance_com/param_multinorm.txt
+chance_com/test_input.mat
+chance_com/test_ip.mat
