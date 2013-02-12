@@ -61,7 +61,7 @@ p=cs1(k+gz)/cs1(end);q=cs2(k+gz)/cs2(end);
 %check for err 1, zero inflated IP as indicated by a global maximal distance
 %between the two curves occuring when the IP curve is zero
 [df,mx_k]=max(abs(cs1(1:gz-1)/cs1(end)-cs2(1:gz-1)/cs2(end)));
-if df>0.75*cut_df||mx_k/m>0.5,err(end+1)=1;end
+if df>0.75*cut_df|mx_k/m>0.5,err(end+1)=1;end
 %compute the change in entropy and its statistical sig via div test
 [ht,pval,ci,zval]=bin_ent_stat(p,q);
 k=k+gz;

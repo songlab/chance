@@ -97,7 +97,52 @@ elseif strcmp(subr,'IPStrength')
         end
         batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf);
     else
-        return;
+        %valid options
+        %'-b','-t','-o','--IPFile','--IPSample','--InputFile','--InputSample'
+        bld=options('-b');
+        if ~ismember(bld,{'hg18','hg19','mm9','tair10'})
+            disp('valid build options are hg18, hg19, mm9, or tair10')
+            return;
+        end
+        typ=options('-t');
+        if ~ismember(typ,{'bam','sam','bed','bowtie','tagAlign','mat'})
+            disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
+            return;
+        end
+        load([bld 'lengths.mat']);
+        if strcmp(options('-t'),'mat')
+            load(options('--InputFile'));
+            input_sample=sample_data('--InputSample');
+            load(options('--IPFile'));
+            ip_sample=sample_data(options('--IPSample'));
+        end
+        %load ip file
+        [d,nuc_freq,phred_hist,~]=make_density_from_file(options('--IPFile'),chr_lens,1000,typ);
+        chrs=d.keys;n=0;
+        for i=1:length(chrs),n=n+sum(d(chrs{i}));end
+        smp.nreads=n;smp.genome=bld;
+        smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred_hist;
+        ip_sample=smp;
+        %load input file
+        [d,nuc_freq,phred_hist,~]=make_density_from_file(options('--InputFile'),chr_lens,1000,typ);
+        chrs=d.keys;n=0;
+        for i=1:length(chrs),n=n+sum(d(chrs{i}));end
+        smp.nreads=n;smp.genome=bld;
+        smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred_hist;
+        input_sample=smp;
+        [s,fd,ht,k,m,sz_ip,sz_input]=ip_strength(input_sample,ip_sample);
+        try, f=fopen(options('-o'),'w');catch me, disp(['error opening output file ' options('-o')]),end
+        fprintf(f,'IP_file,%s\n',options('--IPFile'));fprintf(f,'Input_file,%s\n',options('--InputFile'));
+        fprintf(f,'IP_sample_id,%s\n',options('--IPSample'));fprintf(f,'Input_sample_id,%s\n',options('--InputSample'));
+        fprintf(f,'pass,%g\n',ht);
+        fprintf(f,'fdr,%g\n',fd('all'));fprintf(f,'tfbs_normal_fdr,%g\n',fd('tfbs_normal'));
+        fprintf(f,'histone_normal_fdr,%g\n',fd('histone_normal'));fprintf(f,'tfbs_cancer_fdr,%g\n',fd('tfbs_cancer'));
+        fprintf(f,'histone_cancer_fdr,%g\n',fd('histone_cancer'));fprintf(f,'percent_genome_enriched,%g\n',(100-100*k/m));
+        fprintf(f,'input_scaling_factor,%g\n',(p*sz_ip)/(q*sz_input));
+        fpritnf(f,'differential_percentage_enrichment,%g\n',100*(q-p));
+        for j=1:length(s),fprintf(f,'%s\n',s{j});end
+        if f~=-1,fclose(f);end
+        disp(t)
     end
 end
 
@@ -108,18 +153,25 @@ if ~matlabpool('size'),matlabpool;end
 parfor i=1:length(s)
     input_sample=containers.Map;ip_sample=containers.Map;
     input_sample=input_smpd{i};ip_sample=ip_smpd{i};
-    s{i}=ip_strength(input_sample(input_smp_id{i}),ip_sample(ip_smp_id{i}));
+    [tmps,fd,ht,k,m,sz_ip,sz_input]=ip_strength(input_sample(input_smp_id{i}),ip_sample(ip_smp_id{i}));
+    s{i}=tmps;
 end
 if matlabpool('size'),matlabpool close;end
-for i=1:length(i)
+for i=1:length(s)
     try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
-    fprintf('IP_file,%s\n',ipf{i});fprintf('Input_file,%s\n',inputf{i});
-    fprintf('IP_sample_id,%s\n',ip_smp_id{i});fprintf('Input_sample_id,%s\n',input_smp_id{i});
-    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{i});end
+    fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
+    fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
+    fprintf(f,'pass,%g\n',ht);
+    fprintf(f,'fdr,%g\n',fd('all'));fprintf(f,'tfbs_normal_fdr,%g\n',fd('tfbs_normal'));
+    fprintf(f,'histone_normal_fdr,%g\n',fd('histone_normal'));fprintf(f,'tfbs_cancer_fdr,%g\n',fd('tfbs_cancer'));
+    fprintf(f,'histone_cancer_fdr,%g\n',fd('histone_cancer'));fprintf(f,'percent_genome_enriched,%g\n',(100-100*k/m));
+    fprintf(f,'input_scaling_factor,%g\n',(p*sz_ip)/(q*sz_input));
+    fpritnf(f,'differential_percentage_enrichment,%g\n',100*(q-p));
+    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
     if f~=-1,fclose(f);end
 end
 
-function t=ip_strength(input_data,ip_data)
+function [t,fd,ht,k,m,sz_ip,sz_input]=ip_strength(input_data,ip_data)
     t={};
     [p,q,ht,pval,k,m,sz_ip,sz_input,f,err]=comp_scaling_factor(ip_data.dens,input_data.dens,[0,0]);
     t{1}=['p,' num2str(p)];t{2}=['q,' num2str(q)];t{3}=['ht,' num2str(ht)];
@@ -252,7 +304,7 @@ function out=disp_help()
 s=sprintf('CHANCE usage:\n');
 s=[s,sprintf('chance binData -b build -t file_type -s sample_id (-o output_directory) -f file\n')];
 s=[s,sprintf('chance binData -p parameters_file\n')];
-s=[s,sprintf('chance IPStrength (-o output_directory) --IPFile IP_file_name --IPSample IP_sample_name --InputFile input_file_name --InputSample input_sample_name\n')];
+s=[s,sprintf('chance IPStrength (-o output_directory) --IPFile IP_file_name (--IPSample IP_sample_name) --InputFile input_file_name (--InputSample input_sample_name)\n')];
 s=[s,sprintf('chance IPStrength -p parameters_file\n')];
 s=[s,sprintf('chance multiIPNorm -p parameters_file\n')];
 s=[s,sprintf('chance compENCODE (-o output_directory) -e experiment_type --IPFile IP_file_name --IPSample IP_sample_name --InputFile input_file_name --InputSample input_sample_name\n')];
