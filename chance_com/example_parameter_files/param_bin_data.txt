@@ -1,0 +1,4 @@
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,input.mat,input,hg19,bam
+wgEncodeBroadHistoneA549H3k04me3Dex100nmAlnRep1.bam,ip.mat,ip,hg19,bam
+
+

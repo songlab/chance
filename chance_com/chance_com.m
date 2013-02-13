@@ -51,15 +51,15 @@ if strcmp(subr,'binData')
         for i=1:length(D{1})
             sample_data=smpd{i};save(outf{i},'sample_data');
             smp=sample_data(smp_id{i});
-            outf=outf{i};lst=strfind(outf,'.')-1;
-            if isempty(lst),lst=length(outf);end
-            outf=outf(1:lst)
-            csvwrite([outf,'_phred.csv'],smp.phred)
-            csvwrite([outf,'_Afreq.csv'],smp.nuc_freq.A)
-            csvwrite([outf,'_Gfreq.csv'],smp.nuc_freq.G)
-            csvwrite([outf,'_Cfreq.csv'],smp.nuc_freq.C)
-            csvwrite([outf,'_Tfreq.csv'],smp.nuc_freq.T)
-            csvwrite([outf,'_Nfreq.csv'],smp.nuc_freq.N)
+            otf=outf{i};lst=strfind(otf,'.')-1;
+            if isempty(lst),lst=length(otf);end
+            otf=otf(1:lst)
+            csvwrite([otf,'_phred.csv'],smp.phred)
+            csvwrite([otf,'_Afreq.csv'],smp.nuc_freq.A)
+            csvwrite([otf,'_Gfreq.csv'],smp.nuc_freq.G)
+            csvwrite([otf,'_Cfreq.csv'],smp.nuc_freq.C)
+            csvwrite([otf,'_Tfreq.csv'],smp.nuc_freq.T)
+            csvwrite([otf,'_Nfreq.csv'],smp.nuc_freq.N)
         end
     else
         bld=options('-b');
@@ -365,6 +365,7 @@ elseif strcmp(subr,'compENCODE')
         try, f=fopen(options('-o'),'w');catch me, disp(['error opening output file ' options('-o')]),end
         fprintf(f,'IP_file,%s\n',options('--ipfile'));fprintf(f,'Input_file,%s\n',options('--inputfile'));
         fprintf(f,'IP_sample_id,%s\n',options('--ipsample'));fprintf(f,'Input_sample_id,%s\n',options('--inputsample'));
+        fprintf(f,'experiment_id,%s\n',exp_id{i});fprintf(f,'build,%s\n',bld{i});
         fprintf(f,'odds_ratio,%g\n',od);fprintf(f,'probability,%g\n',p);
         for j=1:length(t),fprintf(f,'%s\n',t{j});,end
         if f~=-1,fclose(f);end
@@ -601,6 +602,9 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
         err_str{err_idx}=t{end};err_idx=err_idx+1;
         t{length(t)+1}='for signal than the IP channel';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
+        fd=containers.Map;
+        fd('all')=1;fd('tfbs_normal')=1;
+        fd('histone_normal')=1;fd('tfbs_cancer')=1;fd('histone_cancer')=1;
     else
         try
         load('fdr_data.mat','qval');
@@ -678,14 +682,14 @@ if matlabpool('size'),matlabpool close;end
 
 function out=disp_help()
 s=sprintf('CHANCE usage:\n');
-s=[s,sprintf('chance binData -b build -t file_type -s sample_id -o output_file -f file\n')];
-s=[s,sprintf('chance binData -p parameters_file\n')];
-s=[s,sprintf('chance IPStrength -b build -t file_type -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
-s=[s,sprintf('chance IPStrength -p parameters_file\n')];
-s=[s,sprintf('chance multiIPNorm -p parameters_file\n')];
-s=[s,sprintf('chance compENCODE -b build -t file_type -o output_file -e experiment_type --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
-s=[s,sprintf('chance compENCODE -p parameters_file\n')];
-s=[s,sprintf('chance spectrum -b build -t file_type (-s sample_id) -o output_file -f file_name -s sample_id\n')];
-s=[s,sprintf('chance spectrum -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -b build -t file_type -s sample_id -o output_file -f file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR IPStrength -b build -t file_type -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR IPStrength -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR multiIPNorm -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR compENCODE -b build -t file_type -o output_file -e experiment_type --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR compENCODE -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR spectrum -b build -t file_type (-s sample_id) -o output_file -f file_name -s sample_id\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR spectrum -p parameters_file\n')];
 disp(s);
 out=0; 

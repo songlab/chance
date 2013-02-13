@@ -1,0 +1,1 @@
+wgEncodeBroadHistoneA549H3k04me3Dex100nmAlnRep1.bam,wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,ip,input,H3k04me3,test_comp_encode.txt,hg19,bam

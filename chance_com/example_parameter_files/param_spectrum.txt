@@ -1,0 +1,2 @@
+wgEncodeBroadHistoneA549H3k04me3Dex100nmAlnRep1.bam,ip,ip_spectrum.txt,hg19,bam
+wgEncodeBroadHistoneA549ControlDex100nmAlnRep1.bam,input,input_spectrum.txt,hg19,bam
