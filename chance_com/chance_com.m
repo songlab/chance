@@ -4,7 +4,7 @@ function out=chance_com(subr,varargin)
 %wrapper function for chance 
 
 out=0;
-cmds={'binData','IPStrength','multiIPNorm','compENCODE','nucFreq','phred','spectrum'};
+cmds={'binData','IPStrength','multiIPNorm','compENCODE','spectrum'};
 if ~ismember(subr,cmds),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
@@ -12,6 +12,10 @@ elseif strcmp(subr,'IPStrength')
     options = containers.Map({'-p','-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[]});
 elseif strcmp(subr,'multiIPNorm')
     options = containers.Map({'-p'},{[]});
+elseif strcmp(subr,'compENCODE')
+    options = containers.Map({'-p','-b','-t','-o','-e','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[],[]});
+elseif strcmp(subr,'spectrum')
+    options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
 end
 optionNames = options.keys;
 nArgs = length(varargin);
@@ -44,7 +48,19 @@ if strcmp(subr,'binData')
             else, chr_lens{i}=mm9_chr_lens;end
         end
         smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ);
-        for i=1:length(D{1}),sample_data=smpd{i};save(outf{i},'sample_data');end
+        for i=1:length(D{1})
+            sample_data=smpd{i};save(outf{i},'sample_data');
+            smp=sample_data(smp_id{i});
+            outf=outf{i};lst=strfind(outf,'.')-1;
+            if isempty(lst),lst=length(outf);end
+            outf=outf(1:lst)
+            csvwrite([outf,'_phred.csv'],smp.phred)
+            csvwrite([outf,'_Afreq.csv'],smp.nuc_freq.A)
+            csvwrite([outf,'_Gfreq.csv'],smp.nuc_freq.G)
+            csvwrite([outf,'_Cfreq.csv'],smp.nuc_freq.C)
+            csvwrite([outf,'_Tfreq.csv'],smp.nuc_freq.T)
+            csvwrite([outf,'_Nfreq.csv'],smp.nuc_freq.N)
+        end
     else
         bld=options('-b');
         if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
@@ -67,11 +83,20 @@ if strcmp(subr,'binData')
         if isKey(options,'-o'), outf=options('-o');
         else, outf='new_sample.mat';end
         save(outf,'sample_data');
+        lst=strfind(outf,'.')-1;
+        if isempty(lst),lst=length(outf);end
+        outf=outf(1:lst)
+        csvwrite([outf,'_phred.csv'],smp.phred)
+        csvwrite([outf,'_Afreq.csv'],smp.nuc_freq.A)
+        csvwrite([outf,'_Gfreq.csv'],smp.nuc_freq.G)
+        csvwrite([outf,'_Cfreq.csv'],smp.nuc_freq.C)
+        csvwrite([outf,'_Tfreq.csv'],smp.nuc_freq.T)
+        csvwrite([outf,'_Nfreq.csv'],smp.nuc_freq.N)
     end
 elseif strcmp(subr,'IPStrength')
     if ~isempty(options('-p'))
         %parameter file must be comma separated values
-        %Input_file_name,IP_file_name,Input_sample_id,IP_sample_id,output_file,build,file_type
+        %IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,output_file,build,file_type
         try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
         catch me, disp('error opening/parsing parameter file, please check file...'),end
         load('hg18lengths.mat');hg18_chr_lens=chr_lens;
@@ -276,6 +301,223 @@ elseif strcmp(subr,'multiIPNorm')
         end
         if f~=-1,fclose(f);end
     end
+elseif strcmp(subr,'compENCODE')
+    if ~isempty(options('-p'))
+        %parameter file must be comma separated values
+        %IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,exp_id,output_file,build,file_type
+        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
+        catch me, disp('error opening/parsing parameter file, please check file...'),end
+        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
+        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
+        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
+        clear chr_lens;
+        for i=1:length(D{1})
+            ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
+            exp_id{i}=D{5}{i};outf{i}=D{6}{i};bld{i}=D{7}{i};typ{i}=D{8}{i};
+            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
+            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
+            else, chr_lens{i}=mm9_chr_lens;end
+        end
+        midx=find(strcmp(typ,'mat'));
+        nidx=setdiff([1:length(typ)],midx);
+        if ~isempty(nidx)
+            input_smpd(nidx)=par_bin_data(inputf(nidx),input_smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
+            ip_smpd(nidx)=par_bin_data(ipf(nidx),ip_smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
+        end
+        for i=1:length(midx)
+            sample_data=[];
+            load(ipf{midx(i)});
+            ip_smpd{midx(i)}=sample_data;
+            sample_data=[];
+            load(inputf{midx(i)});
+            input_smpd{midx(i)}=sample_data;
+        end
+        batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,exp_id,bld,outf) 
+    else
+        %valid options
+        %-b,-t,-o,-e,--ipfile,--ipsample,--inputfile,--inputsample
+        bld=options('-b');
+        if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
+            disp('valid build options are hg18, hg19, mm9, or tair10')
+            return;
+        end
+        typ=options('-t');
+        if isempty(typ)||~ismember(typ,{'bam','sam','bed','bowtie','tagAlign','mat'})
+            disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
+            return;
+        end
+        load([bld 'lengths.mat']);
+        if strcmp(options('-t'),'mat')
+            load(options('--inputfile'));
+            input_sample=sample_data(options('--inputsample'));
+            load(options('--ipfile'));
+            ip_sample=sample_data(options('--ipsample'));
+        else
+            [ip_dens,nuc_freq,phred_hist,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
+            [input_dens,nuc_freq,phred_hist,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
+        end
+        if strcmp(bld,'hg19'),load('hg19_sn_models.mat');
+        else, load('mm9_sn_models.mat');end
+        [od,p]=find_tf_binding_odds(options('-e'),ip_dens,input_dens,1000,tf_beds,tf_dists);
+        t{1}=['Signal to noise ratio (SNR): ' num2str(od)];
+        t{2}=['The probability of observing the given SNR or less in the ENCODE database: ' num2str(p)];
+        t{3}=['A small probability indicates your data differs greatly from ENCODE datasets'];
+        try, f=fopen(options('-o'),'w');catch me, disp(['error opening output file ' options('-o')]),end
+        fprintf(f,'IP_file,%s\n',options('--ipfile'));fprintf(f,'Input_file,%s\n',options('--inputfile'));
+        fprintf(f,'IP_sample_id,%s\n',options('--ipsample'));fprintf(f,'Input_sample_id,%s\n',options('--inputsample'));
+        fprintf(f,'odds_ratio,%g\n',od);fprintf(f,'probability,%g\n',p);
+        for j=1:length(t),fprintf(f,'%s\n',t{j});,end
+        if f~=-1,fclose(f);end
+    end
+elseif strcmp(subr,'spectrum')
+    if ~isempty(options('-p'))
+        %parameter file must be comma separated values
+        %file_name,sample_id,output_file,build,file_type
+        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s','Delimiter',',');fclose(f);
+        catch me, disp('error opening/parsing parameter file, please check file...'),end
+        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
+        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
+        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
+        clear chr_lens;
+        for i=1:length(D{1})
+            ipf{i}=D{1}{i};smp_id{i}=D{2}{i};
+            outf{i}=D{3}{i};bld{i}=D{4}{i};typ{i}=D{5}{i};
+            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
+            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
+            else, chr_lens{i}=mm9_chr_lens;end
+        end
+        midx=find(strcmp(typ,'mat'));
+        nidx=setdiff([1:length(typ)],midx);
+        if ~isempty(nidx)
+            smpd(nidx)=par_bin_data(ipf(nidx),smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
+        end
+        for i=1:length(midx)
+            sample_data=[];
+            load(ipf{midx(i)});
+            smpd{midx(i)}=sample_data;
+        end
+        batch_spectrum(smpd,ipf,smp_id,bld,outf) 
+    else
+        %valid options
+        %-b,-t,-o,-f,-s
+        bld=options('-b');
+        if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
+            disp('valid build options are hg18, hg19, mm9, or tair10')
+            return;
+        end
+        typ=options('-t');
+        if isempty(typ)||~ismember(typ,{'bam','sam','bed','bowtie','tagAlign','mat'})
+            disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
+            return;
+        end
+        load([bld 'lengths.mat']);
+        if strcmp(options('-t'),'mat')
+            load(options('-f'));
+            smp=sample_data(options('-s'));
+        else
+            [dens,nuc_freq,phred_hist,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
+        end
+        sample_data=smp(smp_id);
+        Smpl=[];dens=sample_data.dens;chrs=dens.keys;
+        for j=1:length(chrs),Smpl=[Smpl;dens(chrs{j})];end
+        [c,l]=wavedec(Smpl,15,'haar');
+        [eau,ed_inp]=wenergy(c,l);
+        smp_hist=ed_inp'/sum(ed_inp);
+        t{1}=['apx_coef_energy_user,' num2str(eau)];
+        d=fitdist(max(Smpl,1),'gamma');
+        sim_data=poissrnd(d.random(length(Smpl),1));
+        [c,l]=wavedec(sim_data(find(~isnan(sim_data))),15,'haar');
+        [eas,ed_sim]=wenergy(c,l);
+        sim_hist=ed_sim'/sum(ed_sim);
+        t{2}=['apx_coef_energy_sim' num2str(eas)];
+        try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
+        fprintf(f,'user_file,%s\n',options('-f'));fprintf(f,'sample_id,%s\n',options('--s'));
+        fprintf(f,'bld,%s\n',options('-b'));
+        for j=1:length(t),fprintf(f,'%s\n',t{j});,end
+        if f~=-1,fclose(f);end
+        otf=outf{i};
+        lst=strfind(otf,'.')-1;
+        if isempty(lst),lst=length(otf);end
+        otf=otf(1:lst);
+        csvwrite([otf,'_user_hist.csv'],smp_hist);
+        csvwrite([otf,'_sim_hist.csv'],sim_hist);
+    end      
+end
+
+function out=batch_spectrum(smpd,ipf,smp_id,bld,outf)
+out=0;
+s=cell(length(outf),1);
+smp_hist=s;sim_hist=s;
+if ~matlabpool('size'),matlabpool;end
+parfor i=1:length(s)
+    t=cell(2,1);
+    smp=containers.Map;
+    smp=smpd{i};
+    sample_data=smp(smp_id{i});
+    Smpl=[];dens=sample_data.dens;chrs=dens.keys;
+    for j=1:length(chrs),Smpl=[Smpl;dens(chrs{j})];end
+    [c,l]=wavedec(Smpl,15,'haar');
+    [eau,ed_inp]=wenergy(c,l);
+    smp_hist{i}=ed_inp'/sum(ed_inp);
+    t{1}=['apx_coef_energy_user,' num2str(eau)];
+    d=fitdist(max(Smpl,1),'gamma');
+    sim_data=poissrnd(d.random(length(Smpl),1));
+    [c,l]=wavedec(sim_data(find(~isnan(sim_data))),15,'haar');
+    [eas,ed_sim]=wenergy(c,l);
+    sim_hist{i}=ed_sim'/sum(ed_sim);
+    t{2}=['apx_coef_energy_sim' num2str(eas)];
+    s{i}=t;
+end
+if matlabpool('size'),matlabpool close;end
+for i=1:length(s)
+    try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
+    fprintf(f,'file,%s\n',ipf{i});fprintf(f,'sample_id,%s\n',smp_id{i});
+    fprintf(f,'build,%s\n',bld{i});
+    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
+    if f~=-1,fclose(f);end
+    otf=outf{i};
+    lst=strfind(otf,'.')-1;
+    if isempty(lst),lst=length(otf);end
+    otf=otf(1:lst);
+    csvwrite([otf,'_user_hist.csv'],smp_hist{i});
+    csvwrite([otf,'_sim_hist.csv'],sim_hist{i});
+end
+
+function out=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,exp_id,bld,outf)
+out=0;
+s=cell(length(outf),1);
+odl=s;pl=s;
+load(['mm9_sn_models.mat']);
+mm9_tf_beds=tf_beds;mm9_tf_dists=tf_dists;
+load(['hg19_sn_models.mat']);
+hg19_tf_beds=tf_beds;hg19_tf_dists=tf_dists;
+clear tf_beds tf_dists;
+for i=1:length(s)
+    if strcmp(bld{i},'hg19'),tf_beds{i}=hg19_tf_beds;tf_dists{i}=hg19_tf_dists;
+    else,tf_beds{i}=mm9_tf_beds;tf_dists{i}=mm9_tf_dists;end
+end
+if ~matlabpool('size'),matlabpool;end
+parfor i=1:length(s)
+    t=cell(3,1);
+    input_sample=containers.Map;ip_sample=containers.Map;
+    input_sample=input_smpd{i};ip_sample=ip_smpd{i};
+    ip_data=ip_sample(ip_smp_id{i});input_data=input_sample(input_smp_id{i});
+    [od,p]=find_tf_binding_odds(exp_id{i},ip_data.dens,input_data.dens,1000,tf_beds{i},tf_dists{i});
+    odl{i}=od;pl{i}=p;
+    t{1}=['Signal to noise ratio (SNR): ' num2str(od)];
+    t{2}=['The probability of observing the given SNR or less in the ENCODE database: ' num2str(p)];
+    t{3}=['A small probability indicates your data differs greatly from ENCODE datasets'];
+    s{i}=t;
+end
+if matlabpool('size'),matlabpool close;end
+for i=1:length(s)
+    try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
+    fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
+    fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
+    fprintf(f,'experiment_id,%s\n',exp_id{i});fprintf(f,'build,%s\n',bld{i});
+    fprintf(f,'odds_ratio,%g\n',odl{i});fprintf(f,'probability,%g\n',pl{i});
+    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
+    if f~=-1,fclose(f);end
 end
 
 function out=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf)
@@ -438,12 +680,12 @@ function out=disp_help()
 s=sprintf('CHANCE usage:\n');
 s=[s,sprintf('chance binData -b build -t file_type -s sample_id -o output_file -f file\n')];
 s=[s,sprintf('chance binData -p parameters_file\n')];
-s=[s,sprintf('chance IPStrength -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
+s=[s,sprintf('chance IPStrength -b build -t file_type -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
 s=[s,sprintf('chance IPStrength -p parameters_file\n')];
 s=[s,sprintf('chance multiIPNorm -p parameters_file\n')];
-s=[s,sprintf('chance compENCODE (-o output_directory) -e experiment_type --ipfile IP_file_name --ipsample IP_sample_name --inputfile input_file_name --inputsample input_sample_name\n')];
-s=[s,sprintf('chance nucFreq (-o output_directory) -f file_name -s sample_id\n')];
-s=[s,sprintf('chance phred (-o output_directory) -f file_name -s sample_id\n')];
-s=[s,sprintf('chance spectrum (-o output_directory) -f file_name -s sample_id\n')];
+s=[s,sprintf('chance compENCODE -b build -t file_type -o output_file -e experiment_type --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
+s=[s,sprintf('chance compENCODE -p parameters_file\n')];
+s=[s,sprintf('chance spectrum -b build -t file_type (-s sample_id) -o output_file -f file_name -s sample_id\n')];
+s=[s,sprintf('chance spectrum -p parameters_file\n')];
 disp(s);
-out=0;
+out=0; 
