@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <deployment-project plugin="plugin.deploytool" plugin-version="1.0">
-  <configuration target="target.standalone" target-name="Standalone Application" name="chance" location="/home/aaron/research/fun_genom/software/chance/chance_com" file="/home/aaron/research/fun_genom/software/chance/chance_com/chance.prj" build-checksum="2772476498">
+  <configuration target="target.standalone" target-name="Standalone Application" name="chance" location="/home/aaron/research/fun_genom/software/chance/chance_com" file="/home/aaron/research/fun_genom/software/chance/chance_com/chance.prj" preferred-package-type="package.type.zip" build-checksum="1921615813" preferred-package-location="/home/aaron/research/fun_genom/software/chance/chance_com">
     <param.project.name>/home/aaron/research/fun_genom/software/chance/chance_com/chance.prj</param.project.name>
     <param.target.type>Standalone Application</param.target.type>
     <param.appname>chance</param.appname>
@@ -61,15 +61,34 @@
       <file>${PROJECT_ROOT}/chance_com.m</file>
     </fileset.main>
     <fileset.resources>
+      <file>${PROJECT_ROOT}/bin_ent_stat.m</file>
+      <file>${PROJECT_ROOT}/bin_rel_entropy.m</file>
+      <file>${PROJECT_ROOT}/comp_scaling_factor.m</file>
+      <file>${PROJECT_ROOT}/cons_fun.m</file>
       <file>${PROJECT_ROOT}/custombam.jar</file>
+      <file>${PROJECT_ROOT}/div_fdr.mat</file>
+      <file>${PROJECT_ROOT}/extract_sig.m</file>
+      <file>${PROJECT_ROOT}/fdr_data.mat</file>
+      <file>${PROJECT_ROOT}/find_tf_binding_odds.m</file>
+      <file>${PROJECT_ROOT}/fuse.m</file>
       <file>${PROJECT_ROOT}/hg18lengths.mat</file>
+      <file>${PROJECT_ROOT}/hg19_sn_models.mat</file>
       <file>${PROJECT_ROOT}/hg19lengths.mat</file>
       <file>${PROJECT_ROOT}/make_density_from_file.m</file>
+      <file>${PROJECT_ROOT}/mm9_sn_models.mat</file>
       <file>${PROJECT_ROOT}/mm9lengths.mat</file>
       <file>${PROJECT_ROOT}/sam-1.64.jar</file>
+      <file>${PROJECT_ROOT}/sum_density_over_bed.m</file>
+      <file>${PROJECT_ROOT}/sum_on_intervs.m</file>
       <file>${PROJECT_ROOT}/tair10lengths.mat</file>
     </fileset.resources>
-    <fileset.package />
+    <fileset.package>
+      <file special-file="file.mcr" reference-mode="direct">${MATLAB_ROOT}/toolbox/compiler/deploy/glnxa64/MCRInstaller.zip</file>
+      <file>${PROJECT_ROOT}/README</file>
+      <file>${PROJECT_ROOT}/example_parameter_files</file>
+      <file>${PROJECT_ROOT}/hg19_experiment_list.txt</file>
+      <file>${PROJECT_ROOT}/mm9_experiment_list.txt</file>
+    </fileset.package>
     <build-deliverables>
       <file name="readme.txt" location="${PROJECT_ROOT}/chance/distrib" optional="true">/home/aaron/research/fun_genom/software/chance/chance_com/chance/distrib/readme.txt</file>
       <file name="run_chance.sh" location="${PROJECT_ROOT}/chance/distrib" optional="false">/home/aaron/research/fun_genom/software/chance/chance_com/chance/distrib/run_chance.sh</file>
