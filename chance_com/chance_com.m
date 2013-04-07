@@ -346,6 +346,8 @@ elseif strcmp(subr,'compENCODE')
             disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
             return;
         end
+        exp_id=options('--ipsample');
+        if isempty(exp_id),exp_id='my_sample';end
         load([bld 'lengths.mat']);
         if strcmp(options('-t'),'mat')
             load(options('--inputfile'));
@@ -365,7 +367,7 @@ elseif strcmp(subr,'compENCODE')
         try, f=fopen(options('-o'),'w');catch me, disp(['error opening output file ' options('-o')]),end
         fprintf(f,'IP_file,%s\n',options('--ipfile'));fprintf(f,'Input_file,%s\n',options('--inputfile'));
         fprintf(f,'IP_sample_id,%s\n',options('--ipsample'));fprintf(f,'Input_sample_id,%s\n',options('--inputsample'));
-        fprintf(f,'experiment_id,%s\n',exp_id{i});fprintf(f,'build,%s\n',bld{i});
+        fprintf(f,'experiment_id,%s\n',exp_id);fprintf(f,'build,%s\n',bld);
         fprintf(f,'odds_ratio,%g\n',od);fprintf(f,'probability,%g\n',p);
         for j=1:length(t),fprintf(f,'%s\n',t{j});,end
         if f~=-1,fclose(f);end
@@ -412,14 +414,16 @@ elseif strcmp(subr,'spectrum')
             return;
         end
         load([bld 'lengths.mat']);
+        outf=options('-o');
+        if isempty(outf),disp('no output file specified'),return;end
         if strcmp(options('-t'),'mat')
             load(options('-f'));
             smp=sample_data(options('-s'));
+            dens=smp.dens;
         else
             [dens,nuc_freq,phred_hist,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
         end
-        sample_data=smp(smp_id);
-        Smpl=[];dens=sample_data.dens;chrs=dens.keys;
+        Smpl=[];chrs=dens.keys;
         for j=1:length(chrs),Smpl=[Smpl;dens(chrs{j})];end
         [c,l]=wavedec(Smpl,15,'haar');
         [eau,ed_inp]=wenergy(c,l);
@@ -431,12 +435,12 @@ elseif strcmp(subr,'spectrum')
         [eas,ed_sim]=wenergy(c,l);
         sim_hist=ed_sim'/sum(ed_sim);
         t{2}=['apx_coef_energy_sim' num2str(eas)];
-        try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
-        fprintf(f,'user_file,%s\n',options('-f'));fprintf(f,'sample_id,%s\n',options('--s'));
+        try, f=fopen(outf,'w');catch me, disp(['error opening output file ' outf]),end
+        fprintf(f,'user_file,%s\n',options('-f'));fprintf(f,'sample_id,%s\n',options('-s'));
         fprintf(f,'bld,%s\n',options('-b'));
         for j=1:length(t),fprintf(f,'%s\n',t{j});,end
         if f~=-1,fclose(f);end
-        otf=outf{i};
+        otf=outf;
         lst=strfind(otf,'.')-1;
         if isempty(lst),lst=length(otf);end
         otf=otf(1:lst);
