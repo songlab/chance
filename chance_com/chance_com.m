@@ -73,7 +73,7 @@ if strcmp(subr,'binData')
             return;
         elseif strcmp(typ,'mat'), disp('this is redundant...exiting'),return;end
         load([bld 'lengths.mat']);
-        [d,nuc_freq,phred_hist,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
+        [d,nuc_freq,phred_hist,~,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
         disp('finished binning reads...')
         chrs=d.keys;n=0;
         for i=1:length(chrs),n=n+sum(d(chrs{i}));end
@@ -146,14 +146,14 @@ elseif strcmp(subr,'IPStrength')
             ip_sample=sample_data(options('--ipsample'));
         else
             %load ip file
-            [d,nuc_freq,phred_hist,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
+            [d,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
             chrs=d.keys;n=0;
             for i=1:length(chrs),n=n+sum(d(chrs{i}));end
             smp.nreads=n;smp.genome=bld;
             smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred_hist;
             ip_sample=smp;
             %load input file
-            [d,nuc_freq,phred_hist,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
+            [d,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
             chrs=d.keys;n=0;
             for i=1:length(chrs),n=n+sum(d(chrs{i}));end
             smp.nreads=n;smp.genome=bld;
@@ -355,8 +355,8 @@ elseif strcmp(subr,'compENCODE')
             load(options('--ipfile'));
             ip_sample=sample_data(options('--ipsample'));
         else
-            [ip_dens,nuc_freq,phred_hist,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
-            [input_dens,nuc_freq,phred_hist,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
+            [ip_dens,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
+            [input_dens,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
         end
         if strcmp(bld,'hg19'),load('hg19_sn_models.mat');
         else, load('mm9_sn_models.mat');end
@@ -421,7 +421,7 @@ elseif strcmp(subr,'spectrum')
             smp=sample_data(options('-s'));
             dens=smp.dens;
         else
-            [dens,nuc_freq,phred_hist,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
+            [dens,nuc_freq,phred_hist,~,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
         end
         Smpl=[];chrs=dens.keys;
         for j=1:length(chrs),Smpl=[Smpl;dens(chrs{j})];end
@@ -676,7 +676,7 @@ function smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ)
 if ~matlabpool('size'),matlabpool;end
 smpd={};
 parfor i=1:length(fin)
-    [d,nuc_freq,phred_hist,~]=make_density_from_file(fin{i},chr_lens{i},1000,typ{i});
+    [d,nuc_freq,phred_hist,~,~]=make_density_from_file(fin{i},chr_lens{i},1000,typ{i});
     chrs=d.keys;n=0;
     for j=1:length(chrs),n=n+sum(d(chrs{j}));end
     smp=struct('nreads',n,'genome',bld{i},'dens',d,'nuc_freq',nuc_freq,'phred',phred_hist);

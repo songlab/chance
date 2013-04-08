@@ -1,5 +1,5 @@
-function  [d,nuc_freq,phred_hist,cncl]=make_density_from_file(fname,chr_lens,bin,type)
-%function [d,nuc_freq,phred_hist,cncl]=make_density_from_file(fname,chr_lens,bin,type)
+function  [d,nuc_freq,phred_hist,chr_lens,cncl]=make_density_from_file(fname,chr_lens,bin,type)
+%function [d,nuc_freq,phred_hist,chr_lens,cncl]=make_density_from_file(fname,chr_lens,bin,type)
 %
 %IN:fname is a string holding the file name of the alignments of the form 
 %       chr* start *
@@ -15,19 +15,32 @@ function  [d,nuc_freq,phred_hist,cncl]=make_density_from_file(fname,chr_lens,bin
 %     nuc_freq is a structure with fields .A .G .C .T, giving vectors of
 %     frequencies of nucleotides as a function of sequence index
 %     phred_hist is a histogram of phred quality scores
+%     chr_lens is a map from chromosome ids to chromosome lengths read from
+%     the sam/bam file header or from input if not a sam/bam file type
+%     cncl is true if the function returned because the user pressed cancel
 
 stp=0;k=1;cncl=0;
 chunk=1e6; %the number of lines to read in at a time
 try
-if strcmp(type, 'bam')|strcmp(type,'sam') %all java: see CustomBAMMethods.java for code
+if strcmp(type, 'bam')|strcmp(type,'sam')
     if isdeployed
-        javaaddpath(fullfile(ctfroot,'sam-1.64.jar'));
-        javaaddpath(fullfile(ctfroot,'custombam.jar'));
+%        javaaddpath(fullfile(ctfroot,'sam-1.64.jar'));
+%        javaaddpath(fullfile(ctfroot,'custombam.jar'));
     else
         javaaddpath(fullfile(pwd,'sam-1.64.jar'));
         javaaddpath(fullfile(pwd,'custombam.jar'));
     end
-    allData = songlab.CustomBAMMethods.makeDensityFromFile(java.io.File(fname), int32(bin), chr_lens.keys, int32(cell2mat(chr_lens.values')));
+    %get chromosome length information from bam file
+    import net.sf.samtools.*
+    f=SAMFileReader(java.io.File(fname));
+    hd=f.getFileHeader;
+    sd=hd.getSequenceDictionary;
+    seqs=sd.getSequences;seqs=seqs.toArray;
+    clear chr_lens
+    chr_lens=containers.Map;
+    for i=1:length(seqs),chr_lens(char(seqs(i).getSequenceName))=seqs(i).getSequenceLength;end
+    import songlab.*
+    allData = CustomBAMMethods.makeDensityFromFile(java.io.File(fname), int32(bin), chr_lens.keys, int32(cell2mat(chr_lens.values')));
     referenceIDsToNames = allData(2);
     i=1:length(referenceIDsToNames);
     referenceKeys = cell(1,length(referenceIDsToNames));
@@ -41,7 +54,10 @@ if strcmp(type, 'bam')|strcmp(type,'sam') %all java: see CustomBAMMethods.java f
     nreads = double(allData(1));
     ATCGvsReadPositionCounts = double(allData(4));
     nuc_freq.A=ATCGvsReadPositionCounts(1,:)/nreads;nuc_freq.T=ATCGvsReadPositionCounts(2,:)/nreads;nuc_freq.G=ATCGvsReadPositionCounts(4,:)/nreads;nuc_freq.C=ATCGvsReadPositionCounts(3,:)/nreads;nuc_freq.N=ATCGvsReadPositionCounts(5,:)/nreads;
+    delete(h);
 else 
+h = waitbar(0,'Progress bar:','Name','Processing reads...','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
+setappdata(h,'canceling',0);
 dr=dir(fname);
 f=fopen(fname);
 tmp=textscan(f,'%s',1,'Delimiter','\n');
@@ -56,6 +72,7 @@ if strcmp(type,'bed')
   while ~feof(f)
     cncl=getappdata(h,'canceling');
     if cncl,break,end
+    waitbar((k*chunk)/lns);k=k+1;
     D=textscan(f,'%s%n%*[^\n]',chunk,'Delimiter','\t');
     %D=={chrom,start}
     nreads=nreads+size(D{1},1);
@@ -81,6 +98,7 @@ elseif strcmp(type,'tagAlign')
   while ~feof(f)
     cncl=getappdata(h,'canceling');
     if cncl,break,end
+    waitbar((k*chunk)/lns);k=k+1;
     D=textscan(f,['%s%n%*n%' num2str(seqlen) 'c%*[^\n]'],chunk,'Delimiter','\t');
     %D=={chrom,start,seq,phred}
     nreads=nreads+size(D{3},1);
@@ -157,6 +175,7 @@ elseif strcmp(type,'bowtie')
   while ~feof(f)
     cncl=getappdata(h,'canceling');
     if cncl,break,end
+    waitbar((k*chunk)/lns);k=k+1;
     D=textscan(f,['%*s%c%s%n%' num2str(seqlen) 'c%' num2str(seqlen) 'c%*[^\n]'],chunk,'Delimiter','\t');
     %D=={strand,chrom,start,seq,phred}
     nreads=nreads+size(D{4},1);
@@ -187,9 +206,15 @@ elseif strcmp(type,'bowtie')
   end
   nuc_freq.A=a/nreads;nuc_freq.T=t/nreads;nuc_freq.G=g/nreads;nuc_freq.C=c/nreads;nuc_freq.N=n/nreads;
 end
+delete(h);
 end %close if-else statement
 catch me
     disp(me.message)
-    me.stack
+    for i=1:length(me.stack)
+        disp(me.stack.file(i))
+        disp(me.stack.name(i))
+        disp(me.stack.line(i))
+    end
+    delete(h);
 end
 
