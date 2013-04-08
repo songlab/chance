@@ -103,11 +103,22 @@ else
     if fname==0,return;end
 end
 ot=choose_file_type('title','Choose file type and genome','Select file type and build.');
+if strcmp(ot.genome,'other')
+    if ~(strcmp(ot.file_type,'bam')|strcmp(ot.file_type,'sam'))
+        alert('String','For organisms other that human or mouse the file type must be SAM or BAM')
+        return;
+    end
+    alert('String','Note: any CHANCE functions or statistics dependent on ENCODE data are only available for human or mouse.');
+end
 main_data.last_dir=pname;
 if ~isfield(main_data,'chrom_lens')||~strcmp(main_data.genome,ot.genome)    
     main_data.genome=ot.genome;
-    load([ot.genome 'lengths.mat']);
-    main_data.chrom_lens=chr_lens;
+    if ~strcmp(ot.file_type,'bam')
+        load([ot.genome 'lengths.mat']);
+        main_data.chrom_lens=chr_lens;
+    else
+        main_data.chrom_lens=[];
+    end
 end
 set(handles.root_window,'UserData',main_data);
 t=get(handles.main_output,'String');
@@ -115,7 +126,7 @@ t{length(t)+1}=['Reading ' fname '... this may take a few minutes.'];
 set(handles.main_output,'String',t);
 pause(0.5)
 try
-    [d,nuc_freq,phred,cncl]=make_density_from_file([pname fname],main_data.chrom_lens,1000,ot.file_type);
+    [d,nuc_freq,phred,chr_lens,cncl]=make_density_from_file([pname fname],main_data.chrom_lens,1000,ot.file_type);
 catch me
     alert('title','File read error','string','Make sure file matches selected type.');
     t=get(handles.main_output,'String');
@@ -129,6 +140,8 @@ if cncl
     t{length(t)+1}=[fname ' processing canceled.'];
     set(handles.main_output,'String',t);
 else
+    main_data.chrom_lens=chr_lens;
+    set(handles.root_window,'UserData',main_data);
     try
         smp_name=set_sample_id('title','Enter sample ID:','string',sprintf(['Enter a name for the sample\n(' fname ')']));
     catch me

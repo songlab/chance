@@ -1,5 +1,5 @@
-function  [d,nuc_freq,phred_hist,cncl]=make_density_from_file(fname,chr_lens,bin,type)
-%function [d,nuc_freq,phred_hist,cncl]=make_density_from_file(fname,chr_lens,bin,type)
+function  [d,nuc_freq,phred_hist,chr_lens,cncl]=make_density_from_file(fname,chr_lens,bin,type)
+%function [d,nuc_freq,phred_hist,chr_lens,cncl]=make_density_from_file(fname,chr_lens,bin,type)
 %
 %IN:fname is a string holding the file name of the alignments of the form 
 %       chr* start *
@@ -15,20 +15,30 @@ function  [d,nuc_freq,phred_hist,cncl]=make_density_from_file(fname,chr_lens,bin
 %     nuc_freq is a structure with fields .A .G .C .T, giving vectors of
 %     frequencies of nucleotides as a function of sequence index
 %     phred_hist is a histogram of phred quality scores
+%     chr_lens is a map from chromosome ids to chromosome lengths read from
+%     the sam/bam file header or from input if not a sam/bam file type
+%     cncl is true if the function returned because the user pressed cancel
 
 stp=0;k=1;cncl=0;
 chunk=1e6; %the number of lines to read in at a time
-
-
 try
-if strcmp(type, 'bam')|strcmp(type,'sam') %all java: see CustomBAMMethods.java for code
+if strcmp(type, 'bam')|strcmp(type,'sam')
     if isdeployed
-        javaaddpath(fullfile(ctfroot,'chance','sam-1.64.jar'));
-        javaaddpath(fullfile(ctfroot,'chance','custombam.jar'));
+        javaaddpath('sam-1.64.jar');
+        javaaddpath('custombam.jar');
     else
         javaaddpath(fullfile(pwd,'sam-1.64.jar'));
         javaaddpath(fullfile(pwd,'custombam.jar'));
     end
+    %get chromosome length information from bam file
+    import net.sf.samtools.*
+    f=SAMFileReader(java.io.File(fname));
+    hd=f.getFileHeader;
+    sd=hd.getSequenceDictionary;
+    seqs=sd.getSequences;seqs=seqs.toArray;
+    clear chr_lens
+    chr_lens=containers.Map;
+    for i=1:length(seqs),chr_lens(char(seqs(i).getSequenceName))=seqs(i).getSequenceLength;end
     progressBar = javax.swing.JProgressBar(0, 100);
     progressBar.setValue(0);
     progressBar.setStringPainted(true);

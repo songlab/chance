@@ -206,7 +206,7 @@ function popupmenu2_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-set(hObject,'String',{'Select build...','hg18','hg19','mm9','tair10'})
+set(hObject,'String',{'Select build...','hg18','hg19','mm9','tair10','other'})
 
 % --- Executes on button press in pushbutton3.
 function pushbutton3_Callback(hObject, eventdata, handles)
