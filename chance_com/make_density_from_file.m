@@ -54,7 +54,6 @@ if strcmp(type, 'bam')|strcmp(type,'sam')
     nreads = double(allData(1));
     ATCGvsReadPositionCounts = double(allData(4));
     nuc_freq.A=ATCGvsReadPositionCounts(1,:)/nreads;nuc_freq.T=ATCGvsReadPositionCounts(2,:)/nreads;nuc_freq.G=ATCGvsReadPositionCounts(4,:)/nreads;nuc_freq.C=ATCGvsReadPositionCounts(3,:)/nreads;nuc_freq.N=ATCGvsReadPositionCounts(5,:)/nreads;
-    delete(h);
 else 
 h = waitbar(0,'Progress bar:','Name','Processing reads...','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
 setappdata(h,'canceling',0);
@@ -209,12 +208,14 @@ end
 if exist('h','var'),delete(h);end
 end %close if-else statement
 catch me
+    disp('error reading file')
     disp(me.message)
-    for i=1:length(me.stack)
-        disp(me.stack.file(i))
-        disp(me.stack.name(i))
-        disp(me.stack.line(i))
-    end
-    delete(h);
+    keyboard()
+  %  for i=1:length(me.stack)
+  %      disp(me.stack.file(i))
+  %      disp(me.stack.name(i))
+  %      disp(me.stack.line(i))
+  %  end
+  if exist('h','var'), delete(h);end
 end
 
