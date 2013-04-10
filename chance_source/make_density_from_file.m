@@ -23,12 +23,9 @@ stp=0;k=1;cncl=0;
 chunk=1e6; %the number of lines to read in at a time
 try
 if strcmp(type, 'bam')|strcmp(type,'sam')
-    if isdeployed
-        javaaddpath('sam-1.64.jar');
-        javaaddpath('custombam.jar');
-    else
-        javaaddpath(fullfile(pwd,'sam-1.64.jar'));
-        javaaddpath(fullfile(pwd,'custombam.jar'));
+    if ~isdeployed
+        javaaddpath(fullfile(pwd,'sam-1.64.jar'))
+        javaaddpath(fullfile(pwd,'custombam.jar'))
     end
     %get chromosome length information from bam file
     import net.sf.samtools.*

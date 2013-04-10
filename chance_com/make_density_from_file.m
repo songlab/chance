@@ -206,7 +206,7 @@ elseif strcmp(type,'bowtie')
   end
   nuc_freq.A=a/nreads;nuc_freq.T=t/nreads;nuc_freq.G=g/nreads;nuc_freq.C=c/nreads;nuc_freq.N=n/nreads;
 end
-delete(h);
+if exist('h','var'),delete(h);end
 end %close if-else statement
 catch me
     disp(me.message)
