@@ -128,9 +128,9 @@ pause(0.5)
 try
     [d,nuc_freq,phred,chr_lens,cncl]=make_density_from_file([pname fname],main_data.chrom_lens,1000,ot.file_type);
 catch me
-    alert('title','File read error','string','Make sure file matches selected type.');
+    alert('title','File read error','string','Make sure your file meets the specification of the selected file type.');
     t=get(handles.main_output,'String');
-    t{length(t)+1}=['Error reading ' fname ' make sure file matches selected file type.'];
+    t{length(t)+1}=['Error reading ' fname ' make sure your file meets the specification of the selected file type.'];
     set(handles.main_output,'String',t);
     return
 end

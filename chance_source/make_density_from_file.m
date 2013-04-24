@@ -32,7 +32,8 @@ if strcmp(type, 'bam')|strcmp(type,'sam')
     f=SAMFileReader(java.io.File(fname));
     hd=f.getFileHeader;
     sd=hd.getSequenceDictionary;
-    seqs=sd.getSequences;seqs=seqs.toArray;
+    seqs=sd.getSequences;seqs=seqs.toArray
+    if isempty(seqs),alert('String','This SAM/BAM file is missing a header or the header is corrput.'),return;end
     clear chr_lens
     chr_lens=containers.Map;
     for i=1:length(seqs),chr_lens(char(seqs(i).getSequenceName))=seqs(i).getSequenceLength;end
