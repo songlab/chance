@@ -1,11 +1,15 @@
 function out=chance_com(subr,varargin)
 %function chance_com(subr,varargin)
 %
-%wrapper function for chance 
+%IN: subr is a subroutine to execute,
+%    varargin: variable argument input of parameter value pairs,
+%    see README for usage
+%
+%OUT:
 
 out=0;
 cmds={'binData','IPStrength','multiIPNorm','compENCODE','spectrum'};
-if ~ismember(subr,cmds),disp_help();return;end
+if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
 elseif strcmp(subr,'IPStrength')

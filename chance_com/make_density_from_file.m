@@ -23,10 +23,7 @@ stp=0;k=1;cncl=0;
 chunk=1e6; %the number of lines to read in at a time
 try
 if strcmp(type, 'bam')|strcmp(type,'sam')
-    if isdeployed
-%        javaaddpath(fullfile(ctfroot,'sam-1.64.jar'));
-%        javaaddpath(fullfile(ctfroot,'custombam.jar'));
-    else
+    if ~isdeployed
         javaaddpath(fullfile(pwd,'sam-1.64.jar'));
         javaaddpath(fullfile(pwd,'custombam.jar'));
     end
@@ -36,6 +33,7 @@ if strcmp(type, 'bam')|strcmp(type,'sam')
     hd=f.getFileHeader;
     sd=hd.getSequenceDictionary;
     seqs=sd.getSequences;seqs=seqs.toArray;
+    if isempty(seqs),disp('This SAM/BAM file is missing a header or the header is corrput.'),return;end
     clear chr_lens
     chr_lens=containers.Map;
     for i=1:length(seqs),chr_lens(char(seqs(i).getSequenceName))=seqs(i).getSequenceLength;end
