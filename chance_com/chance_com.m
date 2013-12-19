@@ -1,11 +1,15 @@
 function out=chance_com(subr,varargin)
 %function chance_com(subr,varargin)
 %
-%wrapper function for chance 
+%IN: subr is a subroutine to execute,
+%    varargin: variable argument input of parameter value pairs,
+%    see README for usage
+%
+%OUT:
 
 out=0;
 cmds={'binData','IPStrength','multiIPNorm','compENCODE','spectrum'};
-if ~ismember(subr,cmds),disp_help();return;end
+if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
 elseif strcmp(subr,'IPStrength')
@@ -83,15 +87,15 @@ if strcmp(subr,'binData')
         if isKey(options,'-o'), outf=options('-o');
         else, outf='new_sample.mat';end
         save(outf,'sample_data');
-        lst=strfind(outf,'.')-1;
-        if isempty(lst),lst=length(outf);end
-        outf=outf(1:lst)
-        csvwrite([outf,'_phred.csv'],smp.phred)
-        csvwrite([outf,'_Afreq.csv'],smp.nuc_freq.A)
-        csvwrite([outf,'_Gfreq.csv'],smp.nuc_freq.G)
-        csvwrite([outf,'_Cfreq.csv'],smp.nuc_freq.C)
-        csvwrite([outf,'_Tfreq.csv'],smp.nuc_freq.T)
-        csvwrite([outf,'_Nfreq.csv'],smp.nuc_freq.N)
+        %lst=strfind(outf,'.')-1;
+        %if isempty(lst),lst=length(outf);end
+        %outf=outf(1:lst)
+        %csvwrite([outf,'_phred.csv'],smp.phred)
+        %csvwrite([outf,'_Afreq.csv'],smp.nuc_freq.A)
+        %csvwrite([outf,'_Gfreq.csv'],smp.nuc_freq.G)
+        %csvwrite([outf,'_Cfreq.csv'],smp.nuc_freq.C)
+        %csvwrite([outf,'_Tfreq.csv'],smp.nuc_freq.T)
+        %csvwrite([outf,'_Nfreq.csv'],smp.nuc_freq.N)
     end
 elseif strcmp(subr,'IPStrength')
     if ~isempty(options('-p'))
