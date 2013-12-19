@@ -21,6 +21,7 @@ function  [d,nuc_freq,phred_hist,chr_lens,cncl]=make_density_from_file(fname,chr
 
 stp=0;k=1;cncl=0;
 chunk=1e6; %the number of lines to read in at a time
+d=[];nuc_freq=[];phred_hist=[];chr_lens=[];
 try
 if strcmp(type, 'bam')|strcmp(type,'sam')
     if ~isdeployed

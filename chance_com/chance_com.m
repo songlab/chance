@@ -681,10 +681,16 @@ if ~matlabpool('size'),matlabpool;end
 smpd={};
 parfor i=1:length(fin)
     [d,nuc_freq,phred_hist,~,~]=make_density_from_file(fin{i},chr_lens{i},1000,typ{i});
-    chrs=d.keys;n=0;
-    for j=1:length(chrs),n=n+sum(d(chrs{j}));end
-    smp=struct('nreads',n,'genome',bld{i},'dens',d,'nuc_freq',nuc_freq,'phred',phred_hist);
-    smpd{i}=containers.Map(smp_id{i},smp);
+    if isempty(d)
+        fe=fopen('read_errors.txt','a');
+        fprintf(fe,'%s\n',fin{i});
+        fclose(fe);
+    else
+        chrs=d.keys;n=0;
+        for j=1:length(chrs),n=n+sum(d(chrs{j}));end
+        smp=struct('nreads',n,'genome',bld{i},'dens',d,'nuc_freq',nuc_freq,'phred',phred_hist);
+        smpd{i}=containers.Map(smp_id{i},smp);
+    end
 end
 if matlabpool('size'),matlabpool close;end
 
