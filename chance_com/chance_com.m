@@ -678,19 +678,13 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
 
 function smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ)
 if ~matlabpool('size'),matlabpool;end
-smpd={};
+smpd={};d=[];
 parfor i=1:length(fin)
-    [d,nuc_freq,phred_hist,~,~]=make_density_from_file(fin{i},chr_lens{i},1000,typ{i});
-    if isempty(d)
-        fe=fopen('read_errors.txt','a');
-        fprintf(fe,'%s\n',fin{i});
-        fclose(fe);
-    else
+        [d,~]=make_density_from_file(fin{i},chr_lens{i},1000,typ{i});
         chrs=d.keys;n=0;
         for j=1:length(chrs),n=n+sum(d(chrs{j}));end
-        smp=struct('nreads',n,'genome',bld{i},'dens',d,'nuc_freq',nuc_freq,'phred',phred_hist);
+        smp=struct('nreads',n,'genome',bld{i},'dens',d);
         smpd{i}=containers.Map(smp_id{i},smp);
-    end
 end
 if matlabpool('size'),matlabpool close;end
 
