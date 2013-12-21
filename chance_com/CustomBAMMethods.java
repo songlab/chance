@@ -10,6 +10,7 @@ public class CustomBAMMethods {
 		
 		long fileSize = inputFile.length();
 		final SAMFileReader inputSam = new SAMFileReader(inputFile);
+		inputSam.setValidationStringency(SAMFileReader.ValidationStringency.LENIENT);
 		final SAMRecordIterator recordIterator = inputSam.iterator();
 		SAMRecord samRecord = recordIterator.next();
 		final int sequenceLength = samRecord.getReadLength();

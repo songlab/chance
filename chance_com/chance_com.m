@@ -16,6 +16,8 @@ elseif strcmp(subr,'IPStrength')
     options = containers.Map({'-p','-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[]});
 elseif strcmp(subr,'multiIPNorm')
     options = containers.Map({'-p'},{[]});
+elseif strcmp(subr,'batch')
+    options = containers.Map({'-p'},{[]});
 elseif strcmp(subr,'compENCODE')
     options = containers.Map({'-p','-b','-t','-o','-e','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[],[]});
 elseif strcmp(subr,'spectrum')
@@ -34,8 +36,9 @@ for pair = reshape(varargin,2,[]) %# pair is {propName;propValue}
       return;
    end
 end
+matlabpool;
 if strcmp(subr,'binData')
-    if ~isempty(options('-p'))
+    if ~isempty(options('-p')) %batch multiple files
         %parameter file must be comma separated values
         %input_file_name,output_file_name,sample_id,build,file_type
         try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s','Delimiter',',');fclose(f);
@@ -44,28 +47,29 @@ if strcmp(subr,'binData')
         load('hg19lengths.mat');hg19_chr_lens=chr_lens;
         load('mm9lengths.mat');mm9_chr_lens=chr_lens;
         clear chr_lens;
-        for i=1:length(D{1})
-            fin{i}=D{1}{i};outf{i}=D{2}{i};smp_id{i}=D{3}{i};
-            bld{i}=D{4}{i};lenf{i}=[bld{i},'lengths.mat'];typ{i}=D{5}{i};
-            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
-            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
-            else, chr_lens{i}=mm9_chr_lens;end
+        j=1;
+        while j<length(D{1})
+            fin={};outf={};smp_id={};bld={};lenf={};typ={};
+            i=j;k=1;
+            while i<=j+11&&i<=length(D{1})
+                fin{k}=D{1}{i};outf{k}=D{2}{i};smp_id{k}=D{3}{i};
+                bld{k}=D{4}{i};lenf{k}=[bld{k},'lengths.mat'];typ{k}=D{5}{i};
+                if strcmpi(bld{k},'hg18'),chr_lens{k}=hg18_chr_lens;
+                elseif strcmpi(bld{k},'hg19'), chr_lens{k}=hg19_chr_lens;
+                else, chr_lens{k}=mm9_chr_lens;end
+                i=i+1;k=k+1;
+            end
+            smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ);
+            for i=1:length(fin)
+                try
+                sample_data=smpd{i};save(outf{i},'sample_data');
+                catch me
+                    keyboard()
+                end
+            end
+            j=j+12;
         end
-        smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ);
-        for i=1:length(D{1})
-            sample_data=smpd{i};save(outf{i},'sample_data');
-            smp=sample_data(smp_id{i});
-            otf=outf{i};lst=strfind(otf,'.')-1;
-            if isempty(lst),lst=length(otf);end
-            otf=otf(1:lst)
-            csvwrite([otf,'_phred.csv'],smp.phred)
-            csvwrite([otf,'_Afreq.csv'],smp.nuc_freq.A)
-            csvwrite([otf,'_Gfreq.csv'],smp.nuc_freq.G)
-            csvwrite([otf,'_Cfreq.csv'],smp.nuc_freq.C)
-            csvwrite([otf,'_Tfreq.csv'],smp.nuc_freq.T)
-            csvwrite([otf,'_Nfreq.csv'],smp.nuc_freq.N)
-        end
-    else
+    else %process a single file
         bld=options('-b');
         if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
             disp('valid build options are hg18, hg19, mm9, or tair10')
@@ -77,26 +81,58 @@ if strcmp(subr,'binData')
             return;
         elseif strcmp(typ,'mat'), disp('this is redundant...exiting'),return;end
         load([bld 'lengths.mat']);
-        [d,nuc_freq,phred_hist,~,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
+        [d,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
         disp('finished binning reads...')
         chrs=d.keys;n=0;
         for i=1:length(chrs),n=n+sum(d(chrs{i}));end
         smp.nreads=n;smp.genome=bld;
-        smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred_hist;
+        smp.dens=d;
         sample_data(options('-s'))=smp;
         if isKey(options,'-o'), outf=options('-o');
         else, outf='new_sample.mat';end
         save(outf,'sample_data');
-        %lst=strfind(outf,'.')-1;
-        %if isempty(lst),lst=length(outf);end
-        %outf=outf(1:lst)
-        %csvwrite([outf,'_phred.csv'],smp.phred)
-        %csvwrite([outf,'_Afreq.csv'],smp.nuc_freq.A)
-        %csvwrite([outf,'_Gfreq.csv'],smp.nuc_freq.G)
-        %csvwrite([outf,'_Cfreq.csv'],smp.nuc_freq.C)
-        %csvwrite([outf,'_Tfreq.csv'],smp.nuc_freq.T)
-        %csvwrite([outf,'_Nfreq.csv'],smp.nuc_freq.N)
     end
+elseif strcmp(subr,'batch')
+    %parameter file format: IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,tf_name,output_file,build,file_type
+        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
+        catch me, disp('error opening/parsing parameter file, please check file...'),end
+        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
+        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
+        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
+        clear chr_lens;
+        for i=1:length(D{1})
+            ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
+            tf_name{i}=D{5}{i};outf{i}=D{6}{i};bld{i}=D{6}{i};typ{i}=D{7}{i};
+            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
+            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
+            else, chr_lens{i}=mm9_chr_lens;end
+        end
+        midx=find(strcmp(typ,'mat'));
+        nidx=setdiff([1:length(typ)],midx);
+        if ~isempty(nidx)
+            i=1;
+            while i<=floor(length(nidx)/12)
+                k=[(i-1)*12+1,min(length(nidx),i*12)];
+                input_smpd(nidx(k))=par_bin_data(inputf(nidx(k)),input_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
+                i=i+1;
+            end
+            i=1;
+            while i<=floor(length(nidx)/12)
+                k=[(i-1)*12+1,min(length(nidx),i*12)];
+                ip_smpd(nidx(k))=par_bin_data(ipf(nidx(k)),ip_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
+                i=i+1;
+            end
+        end
+        for i=1:length(midx)
+            sample_data=[];
+            load(ipf{midx(i)});
+            ip_smpd{midx(i)}=sample_data;
+            sample_data=[];
+            load(inputf{midx(i)});
+            input_smpd{midx(i)}=sample_data;
+        end
+        []=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf);
+    
 elseif strcmp(subr,'IPStrength')
     if ~isempty(options('-p'))
         %parameter file must be comma separated values
@@ -451,13 +487,13 @@ elseif strcmp(subr,'spectrum')
         csvwrite([otf,'_user_hist.csv'],smp_hist);
         csvwrite([otf,'_sim_hist.csv'],sim_hist);
     end      
+    matlabpool close;
 end
 
 function out=batch_spectrum(smpd,ipf,smp_id,bld,outf)
 out=0;
 s=cell(length(outf),1);
 smp_hist=s;sim_hist=s;
-if ~matlabpool('size'),matlabpool;end
 parfor i=1:length(s)
     t=cell(2,1);
     smp=containers.Map;
@@ -530,10 +566,8 @@ for i=1:length(s)
 end
 
 function out=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf)
-out=0;
 s=cell(length(outf),1);%s{i} is a cell array of strings holding the result of the test to be stored in outf{i}
 fdl=s;htl=s;kl=s;ml=s;sz_ipl=s;sz_inputl=s;pl=s;ql=s;
-if ~matlabpool('size'),matlabpool;end
 parfor i=1:length(s)
     input_sample=containers.Map;ip_sample=containers.Map;
     input_sample=input_smpd{i};ip_sample=ip_smpd{i};
@@ -541,7 +575,8 @@ parfor i=1:length(s)
     s{i}=tmps;fdl{i}=fd;htl{i}=ht;kl{i}=k;ml{i}=m;sz_ipl{i}=sz_ip;
     sz_inputl{i}=sz_input;pl{i}=p;ql{i}=q;
 end
-if matlabpool('size'),matlabpool close;end
+out.fdrs=fdl; %cell array of FDR estimate maps, cf. f=fdrs{i},f.keys
+out.ht=htl; %hypothesis test for enrichment 
 for i=1:length(s)
     try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
     fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
@@ -677,16 +712,18 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
     end
 
 function smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ)
-if ~matlabpool('size'),matlabpool;end
 smpd={};d=[];
 parfor i=1:length(fin)
         [d,~]=make_density_from_file(fin{i},chr_lens{i},1000,typ{i});
+        if isempty(d),disp(fin{i})
+        else
         chrs=d.keys;n=0;
         for j=1:length(chrs),n=n+sum(d(chrs{j}));end
         smp=struct('nreads',n,'genome',bld{i},'dens',d);
         smpd{i}=containers.Map(smp_id{i},smp);
+        end
 end
-if matlabpool('size'),matlabpool close;end
+
 
 function out=disp_help()
 s=sprintf('CHANCE usage:\n');

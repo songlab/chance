@@ -21,8 +21,8 @@ d=[];
 try
 if strcmp(type, 'bam')|strcmp(type,'sam')
     if ~isdeployed
-        javaaddpath('sam-1.64.jar');
-        javaaddpath('custombam.jar');
+        javaaddpath('/songlab/aaron/research/fun_genom/active_work/chance/chance_com/sam-1.64.jar');
+        javaaddpath('/songlab/aaron/research/fun_genom/active_work/chance/chance_com/custombam.jar');
     end
     %get chromosome length information from bam file
     import net.sf.samtools.*
