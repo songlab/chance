@@ -17,7 +17,7 @@ elseif strcmp(subr,'IPStrength')
 elseif strcmp(subr,'multiIPNorm')
     options = containers.Map({'-p'},{[]});
 elseif strcmp(subr,'batch')
-    options = containers.Map({'-p'},{[]});
+    options = containers.Map({'-p','-o'},{[],[]});
 elseif strcmp(subr,'compENCODE')
     options = containers.Map({'-p','-b','-t','-o','-e','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[],[]});
 elseif strcmp(subr,'spectrum')
@@ -93,8 +93,8 @@ if strcmp(subr,'binData')
         save(outf,'sample_data');
     end
 elseif strcmp(subr,'batch')
-    %parameter file format: IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,tf_name,output_file,build,file_type
-        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
+    %parameter file format: IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,tf_name,build,file_type
+        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
         catch me, disp('error opening/parsing parameter file, please check file...'),end
         load('hg18lengths.mat');hg18_chr_lens=chr_lens;
         load('hg19lengths.mat');hg19_chr_lens=chr_lens;
@@ -102,7 +102,7 @@ elseif strcmp(subr,'batch')
         clear chr_lens;
         for i=1:length(D{1})
             ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
-            tf_name{i}=D{5}{i};outf{i}=D{6}{i};bld{i}=D{6}{i};typ{i}=D{7}{i};
+            tf_name{i}=D{5}{i};bld{i}=D{6}{i};typ{i}=D{7}{i};
             if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
             elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
             else, chr_lens{i}=mm9_chr_lens;end
@@ -131,8 +131,31 @@ elseif strcmp(subr,'batch')
             load(inputf{midx(i)});
             input_smpd{midx(i)}=sample_data;
         end
-        []=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf);
-    
+        snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
+        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
+        spc=batch_spectrum(input_smpd,inputf,input_smp_id,bld,[]);
+        if isKey(options,'-o'), outf=options('-o');
+        else, outf='chance_output.txt';end
+        f=fopen(outf,'a');
+        fprintf(f,['IP\tInput\tPercent_enrichment\tFDR\t' ...
+                   'FDR_cancer_tfbs\tFDR_cancer_histone\t' ...
+                   'FDR_normal_tfbs\tFDR_normal_histone\t' ...
+                   'Known_peaks_binding_odds\tKnown_peaks_pvalue\tInput_bias\tInput_bias_pvlaue\n']);
+        fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;enc_odz=enc.odz;enc_p=enc.pval;dip=spc.dip;dip_p=spc.pval;
+        for i=1:length(snrs)
+            fprintf(f,'%g\t',100*(snr.q-snr.p));
+            fd=fdrs{i};
+            fpirntf(f,'%g\t',fd('all'));
+            fprintf(f,'%g\t',fd('tfbs_cancer'));
+            fprintf(f,'%g\t',fd('histone_cancer'));
+            fprintf(f,'%g\t',fd('tfbs_normal'));
+            fprintf(f,'%g\t',fd('histone_normal'));
+            fprintf(f,'%g\t',enc_odz{i});
+            fprintf(f,'%g\t',enc_p{i});
+            fprintf(f,'%g\t',dip{i});
+            fprintf(f,'%g\n',dip_p{i});
+        end
+        fclose(f);
 elseif strcmp(subr,'IPStrength')
     if ~isempty(options('-p'))
         %parameter file must be comma separated values
@@ -164,7 +187,7 @@ elseif strcmp(subr,'IPStrength')
             load(inputf{midx(i)});
             input_smpd{midx(i)}=sample_data;
         end
-        batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf);
+        snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf);
     else
         %valid options
         %'-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'
@@ -490,9 +513,9 @@ elseif strcmp(subr,'spectrum')
     matlabpool close;
 end
 
-function out=batch_spectrum(smpd,ipf,smp_id,bld,outf)
+function out=batch_spectrum(smpd,inputf,smp_id,bld,outf)
 out=0;
-s=cell(length(outf),1);
+s=cell(length(smpd),1);
 smp_hist=s;sim_hist=s;
 parfor i=1:length(s)
     t=cell(2,1);
@@ -513,24 +536,27 @@ parfor i=1:length(s)
     t{2}=['apx_coef_energy_sim' num2str(eas)];
     s{i}=t;
 end
-if matlabpool('size'),matlabpool close;end
-for i=1:length(s)
-    try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
-    fprintf(f,'file,%s\n',ipf{i});fprintf(f,'sample_id,%s\n',smp_id{i});
-    fprintf(f,'build,%s\n',bld{i});
-    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
-    if f~=-1,fclose(f);end
-    otf=outf{i};
-    lst=strfind(otf,'.')-1;
-    if isempty(lst),lst=length(otf);end
-    otf=otf(1:lst);
-    csvwrite([otf,'_user_hist.csv'],smp_hist{i});
-    csvwrite([otf,'_sim_hist.csv'],sim_hist{i});
+[dip,p_value,~,~]=HartigansDipSignifTest(smp_hist,100);
+out.dip=dip;
+out.pval=p_value;
+if ~isempty(outf)
+    for i=1:length(s)
+        try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
+        fprintf(f,'file,%s\n',inputf{i});fprintf(f,'sample_id,%s\n',smp_id{i});
+        fprintf(f,'build,%s\n',bld{i});
+        t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
+        if f~=-1,fclose(f);end
+        otf=outf{i};
+        lst=strfind(otf,'.')-1;
+        if isempty(lst),lst=length(otf);end
+        otf=otf(1:lst);
+        csvwrite([otf,'_user_hist.csv'],smp_hist{i});
+        csvwrite([otf,'_sim_hist.csv'],sim_hist{i});
+    end
 end
 
 function out=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,exp_id,bld,outf)
-out=0;
-s=cell(length(outf),1);
+s=cell(length(input_smpd),1);
 odl=s;pl=s;
 load(['mm9_sn_models.mat']);
 mm9_tf_beds=tf_beds;mm9_tf_dists=tf_dists;
@@ -541,7 +567,6 @@ for i=1:length(s)
     if strcmp(bld{i},'hg19'),tf_beds{i}=hg19_tf_beds;tf_dists{i}=hg19_tf_dists;
     else,tf_beds{i}=mm9_tf_beds;tf_dists{i}=mm9_tf_dists;end
 end
-if ~matlabpool('size'),matlabpool;end
 parfor i=1:length(s)
     t=cell(3,1);
     input_sample=containers.Map;ip_sample=containers.Map;
@@ -554,19 +579,22 @@ parfor i=1:length(s)
     t{3}=['A small probability indicates your data differs greatly from ENCODE datasets'];
     s{i}=t;
 end
-if matlabpool('size'),matlabpool close;end
-for i=1:length(s)
-    try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
-    fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
-    fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
-    fprintf(f,'experiment_id,%s\n',exp_id{i});fprintf(f,'build,%s\n',bld{i});
-    fprintf(f,'odds_ratio,%g\n',odl{i});fprintf(f,'probability,%g\n',pl{i});
-    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
-    if f~=-1,fclose(f);end
+out.odz=odl;
+out.pval=p;
+if ~isempty(outf)
+    for i=1:length(s)
+        try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
+        fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
+        fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
+        fprintf(f,'experiment_id,%s\n',exp_id{i});fprintf(f,'build,%s\n',bld{i});
+        fprintf(f,'odds_ratio,%g\n',odl{i});fprintf(f,'probability,%g\n',pl{i});
+        t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
+        if f~=-1,fclose(f);end
+    end
 end
 
 function out=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf)
-s=cell(length(outf),1);%s{i} is a cell array of strings holding the result of the test to be stored in outf{i}
+s=cell(length(input_smpd),1);%s{i} is a cell array of strings holding the result of the test to be stored in outf{i}
 fdl=s;htl=s;kl=s;ml=s;sz_ipl=s;sz_inputl=s;pl=s;ql=s;
 parfor i=1:length(s)
     input_sample=containers.Map;ip_sample=containers.Map;
@@ -577,18 +605,27 @@ parfor i=1:length(s)
 end
 out.fdrs=fdl; %cell array of FDR estimate maps, cf. f=fdrs{i},f.keys
 out.ht=htl; %hypothesis test for enrichment 
-for i=1:length(s)
-    try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
-    fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
-    fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
-    fprintf(f,'pass,%g\n',htl{i});fd=fdl{i};
-    fprintf(f,'fdr,%g\n',fd('all'));fprintf(f,'tfbs_normal_fdr,%g\n',fd('tfbs_normal'));
-    fprintf(f,'histone_normal_fdr,%g\n',fd('histone_normal'));fprintf(f,'tfbs_cancer_fdr,%g\n',fd('tfbs_cancer'));
-    fprintf(f,'histone_cancer_fdr,%g\n',fd('histone_cancer'));fprintf(f,'percent_genome_enriched,%g\n',(100-100*kl{i}/ml{i}));
-    fprintf(f,'input_scaling_factor,%g\n',(pl{i}*sz_ipl{i})/(ql{i}*sz_inputl{i}));
-    fprintf(f,'differential_percentage_enrichment,%g\n',100*(ql{i}-pl{i}));
-    t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
-    if f~=-1,fclose(f);end
+out.err_str=s; %error messages
+out.k=kl; %k/m is the fraction of bins enriched for signal
+out.m=ml;
+out.sz_ip=sz_ipl;
+out.sz_input=sz_inputl;
+out.p=pl;
+out.q=ql;
+if ~isempty(outf)
+    for i=1:length(s)
+        try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
+        fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
+        fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
+        fprintf(f,'pass,%g\n',htl{i});fd=fdl{i};
+        fprintf(f,'fdr,%g\n',fd('all'));fprintf(f,'tfbs_normal_fdr,%g\n',fd('tfbs_normal'));
+        fprintf(f,'histone_normal_fdr,%g\n',fd('histone_normal'));fprintf(f,'tfbs_cancer_fdr,%g\n',fd('tfbs_cancer'));
+        fprintf(f,'histone_cancer_fdr,%g\n',fd('histone_cancer'));fprintf(f,'percent_genome_enriched,%g\n',(100-100*kl{i}/ml{i}));
+        fprintf(f,'input_scaling_factor,%g\n',(pl{i}*sz_ipl{i})/(ql{i}*sz_inputl{i}));
+        fprintf(f,'differential_percentage_enrichment,%g\n',100*(ql{i}-pl{i}));
+        t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
+        if f~=-1,fclose(f);end
+    end
 end
 
 function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
