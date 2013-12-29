@@ -8,7 +8,7 @@ function out=chance_com(subr,varargin)
 %OUT:
 
 out=0;
-cmds={'binData','IPStrength','multiIPNorm','compENCODE','spectrum'};
+cmds={'binData','IPStrength','multiIPNorm','batch','compENCODE','spectrum'};
 if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
@@ -36,7 +36,7 @@ for pair = reshape(varargin,2,[]) %# pair is {propName;propValue}
       return;
    end
 end
-matlabpool;
+if ~matlabpool('size'), matlabpool; end
 if strcmp(subr,'binData')
     if ~isempty(options('-p')) %batch multiple files
         %parameter file must be comma separated values
@@ -111,13 +111,13 @@ elseif strcmp(subr,'batch')
         nidx=setdiff([1:length(typ)],midx);
         if ~isempty(nidx)
             i=1;
-            while i<=floor(length(nidx)/12)
+            while i<=ceil(length(nidx)/12)
                 k=[(i-1)*12+1,min(length(nidx),i*12)];
                 input_smpd(nidx(k))=par_bin_data(inputf(nidx(k)),input_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
                 i=i+1;
             end
             i=1;
-            while i<=floor(length(nidx)/12)
+            while i<=ceil(length(nidx)/12)
                 k=[(i-1)*12+1,min(length(nidx),i*12)];
                 ip_smpd(nidx(k))=par_bin_data(ipf(nidx(k)),ip_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
                 i=i+1;
@@ -143,9 +143,9 @@ elseif strcmp(subr,'batch')
                    'Known_peaks_binding_odds\tKnown_peaks_pvalue\tInput_bias\tInput_bias_pvlaue\n']);
         fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;enc_odz=enc.odz;enc_p=enc.pval;dip=spc.dip;dip_p=spc.pval;
         for i=1:length(snrs)
-            fprintf(f,'%g\t',100*(snr.q-snr.p));
+            fprintf(f,'%g\t',100*(q{i}-p{i}));
             fd=fdrs{i};
-            fpirntf(f,'%g\t',fd('all'));
+            fprintf(f,'%g\t',fd('all'));
             fprintf(f,'%g\t',fd('tfbs_cancer'));
             fprintf(f,'%g\t',fd('histone_cancer'));
             fprintf(f,'%g\t',fd('tfbs_normal'));
@@ -514,7 +514,6 @@ elseif strcmp(subr,'spectrum')
 end
 
 function out=batch_spectrum(smpd,inputf,smp_id,bld,outf)
-out=0;
 s=cell(length(smpd),1);
 smp_hist=s;sim_hist=s;
 parfor i=1:length(s)
@@ -535,8 +534,10 @@ parfor i=1:length(s)
     sim_hist{i}=ed_sim'/sum(ed_sim);
     t{2}=['apx_coef_energy_sim' num2str(eas)];
     s{i}=t;
+    [dipt,p_valuet,~,~]=hartigansdipsigniftest(smp_hist{i},100);
+    dip{i}=dipt;
+    p_value{i}=p_valuet;
 end
-[dip,p_value,~,~]=HartigansDipSignifTest(smp_hist,100);
 out.dip=dip;
 out.pval=p_value;
 if ~isempty(outf)
@@ -567,6 +568,7 @@ for i=1:length(s)
     if strcmp(bld{i},'hg19'),tf_beds{i}=hg19_tf_beds;tf_dists{i}=hg19_tf_dists;
     else,tf_beds{i}=mm9_tf_beds;tf_dists{i}=mm9_tf_dists;end
 end
+length(s)
 parfor i=1:length(s)
     t=cell(3,1);
     input_sample=containers.Map;ip_sample=containers.Map;
@@ -580,7 +582,7 @@ parfor i=1:length(s)
     s{i}=t;
 end
 out.odz=odl;
-out.pval=p;
+out.pval=pl;
 if ~isempty(outf)
     for i=1:length(s)
         try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end

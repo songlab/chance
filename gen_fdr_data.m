@@ -1,61 +1,59 @@
-function [pnull,palt,cinull,cialt,zvalnull,zvalalt]=gen_fdr_data()
-addpath /home/aaron/research/fun_genom/matlab_code/chance
-pref='/home/aaron/research/fun_genom/data/uchicago_tfbs/';
-d=dir([pref '*.mat']);
-pnull=[];palt=[];cinull=[];cialt=[];zvalnull=[];zvalalt=[];
-IPZ={};INPUT1Z={};INPUT2Z={};
-for i=1:length(d)
-    disp(d(i).name)
-    load([pref d(i).name]);
-    input1_struc=sample_data('input1');
-    input2_struc=sample_data('input2');
-    ip_struc=sample_data('ip');
-    kz=input1_struc.dens.keys;input1=[];
-    for j=1:length(kz),input1=[input1;input1_struc.dens(kz{j})];end
-    kz=input2_struc.dens.keys;input2=[];
-    for j=1:length(kz),input2=[input2;input2_struc.dens(kz{j})];end
-    kz=ip_struc.dens.keys;ip=[];
-    for j=1:length(kz),ip=[ip;ip_struc.dens(kz{j})];end
-    IP=ones(size(ip,1),10);INPUT1=ones(size(input1,1),10);INPUT2=ones(size(input2,1),10);
-    for j=1:length(ip),IP(j,:)=ip(j);end
-    for j=1:length(input1),INPUT1(j,:)=input1(j);end
-    for j=1:length(input2),INPUT2(j,:)=input2(j);end
-    IP=[poissrnd(IP),ip];INPUT1=[poissrnd(INPUT1),input1];INPUT2=[poissrnd(INPUT2),input2];
-    IPZ{i}=IP;INPUT1Z{i}=INPUT1;INPUT2Z{i}=INPUT2;
+function comp_chance_fdr(data_dir,input_str)
+%function comp_chance_fdr(data_dir, input_str)
+%
+%IN: data_dir - name of directory holding sample BAM files
+%    input_str - string identifying control samples
+%
+%OUT:
+%
+
+%dir to find bam files 
+%data_dir=/songlab/aaron/research/fun_genom/data/broad_tfbs/normal/
+%name of mat file to write containing CHANCE confusion matrix and
+%associatd statistics
+%fname=broad_tfbs_normal;
+%input_str='Control'; %Input-channel identifier, substring of sample file name
+
+cd(data_dir)
+d=dir('*.mat');
+M=strvcat(d.name); %cast cell array as charcter matrix
+%identify cell id strings from file name prefix
+k=1;
+for i=1:size(M,1)
+    t=strfind(M(i,:),input_str); %identify control samples
+    r=strfind(M(i,:),'Rep'); %which have replicates
+    if ~isempty(t)&&~isempty(r)
+            cidx(k)=i; 
+            cnames{k}=M(i,1:t(1)-1);
+            k=k+1;
+    end
 end
-parfor i=1:length(d)
-    cinull_loc=[];cialt_loc=[];
-    zvalnull_loc=[];zvalalt_loc=[];
-    pnull_loc=[];palt_loc=[];rn=1;ra=1;
-    INPUT1=INPUT1Z{i};INPUT2=INPUT2Z{i};IP=IPZ{i};
-    for j=1:11
-        for k=j:11
-           %compare input-input
-           [p,q,~,pnull_loc(rn),~,~,~]=extract_sig(INPUT1(:,j),INPUT2(:,k),[],[]);rn=rn+1;
-           [~,~,cinull_loc(:,rn),zvalnull_loc(rn)]=bin_ent_stat(p,q);
-           [p,q,~,pnull_loc(rn),~,~,~]=extract_sig(INPUT2(:,k),INPUT1(:,j),[],[]);rn=rn+1;
-           [~,~,cinull_loc(:,rn),zvalnull_loc(rn)]=bin_ent_stat(p,q);
-           %compare ip-input
-           [p,q,~,palt_loc(ra),~,~,err]=extract_sig(IP(:,j),INPUT2(:,k),[],[]);
-           if any(err==3)
-               palt_loc(ra)=1e-30;
-               [~,~,cialt_loc(:,ra),zvalalt_loc(ra)]=bin_ent_stat(p,p);
-           else
-               [~,~,cialt_loc(:,ra),zvalalt_loc(ra)]=bin_ent_stat(p,q);
-           end
-           ra=ra+1;
-           [p,q,~,palt_loc(ra),~,~,err]=extract_sig(IP(:,j),INPUT1(:,k),[],[]);
-           if any(err==3)
-               palt_loc(ra)=1e-30;
-               [~,~,cialt_loc(:,ra),zvalalt_loc(ra)]=bin_ent_stat(p,p);
-           else
-               [~,~,cialt_loc(:,ra),zvalalt_loc(ra)]=bin_ent_stat(p,q);
-           end
-           ra=ra+1;
+cnames=unique(cnames);
+for i=1:length(cnames)
+    tidx=strmatch(cnames{i},M); %index samples by cell type
+    %index the control samples of cell type cnames{i} which have replicates
+    cidx=[];S={};k=1;
+    for j=1:length(tidx)
+        t=strfind(M(tidx(j),:),input_str); %identify control samples
+        r=strfind(M(tidx(j),:),'Rep'); %which have Rep in ID
+        if ~isempty(t)&&~isempty(r)
+            S{k}=M(tidx(j),1:r-1); 
+            k=k+1;
+            cidx=[cidx;j];
         end
     end
-    cinull=[cinull cinull_loc];zvalnull=[zvalnull zvalnull_loc];
-    cialt=[cialt cialt_loc];zvalalt=[zvalalt zvalalt_loc];
-    pnull=[pnull pnull_loc];palt=[palt palt_loc];
+    cidx=tidx(cidx);
+    [T,~,uidx]=unique(S);
+    cidx2={};k=1;
+    for j=1:length(T)
+        t=find(uidx==j);
+        if length(t)>1
+            cidx2{k}=cidx(t); 
+            k=k+1;
+        end
+    end
+    cidx=cidx2; %index of control samples with replicates
+    if isempty(cidx), continue; end
+    for j=1:length(cidx), tidx=setdiff(tidx,cidx{j}); end %index of treatment samples
+                                                    
 end
-save uchicago_tf_cancer_div_fdr_estimates.mat

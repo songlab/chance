@@ -17,6 +17,7 @@ function	[dip,xl,xu, ifault, gcm, lcm, mn, mj] = HartigansDipTest(xpdf)
 % as well as the minorant and majorant fits GCM, LCM, and the corresponding support indices MN, and MJ
 
 % sort X in increasing order in column vector
+
 x=sort(xpdf(:));
 N=length(x);
 mn=zeros(size(x));

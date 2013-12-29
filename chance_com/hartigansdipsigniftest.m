@@ -9,14 +9,14 @@ function		[dip, p_value, xlow,xup]=HartigansDipSignifTest(xpdf,nboot)
 % Code by F. Mechler (27 August 2002)
 
 % calculate the DIP statistic from the empirical pdf
-[dip,xlow,xup, ifault, gcm, lcm, mn, mj]=HartigansDipTest(xpdf);
+[dip,xlow,xup, ifault, gcm, lcm, mn, mj]=hartigansdiptest(xpdf);
 N=length(xpdf);
 
 % calculate a bootstrap sample of size NBOOT of the dip statistic for a uniform pdf of sample size N (the same as empirical pdf)
 boot_dip=[];
 for i=1:nboot
    unifpdfboot=sort(unifrnd(0,1,1,N));
-   [unif_dip]=HartigansDipTest(unifpdfboot);
+   [unif_dip]=hartigansdiptest(unifpdfboot);
    boot_dip=[boot_dip; unif_dip];
 end;
 boot_dip=sort(boot_dip);
