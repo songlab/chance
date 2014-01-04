@@ -134,7 +134,7 @@ elseif strcmp(subr,'batch')
         snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
         enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
         spc=batch_spectrum(input_smpd,inputf,input_smp_id,bld,[]);
-        if isKey(options,'-o'), outf=options('-o');
+        if isKey(options,'-o')&&~isempty(options('-o')), outf=options('-o');
         else, outf='chance_output.txt';end
         f=fopen(outf,'a');
         fprintf(f,['IP\tInput\tPercent_enrichment\tFDR\t' ...
@@ -143,6 +143,8 @@ elseif strcmp(subr,'batch')
                    'Known_peaks_binding_odds\tKnown_peaks_pvalue\tInput_bias\tInput_bias_pvlaue\n']);
         fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;enc_odz=enc.odz;enc_p=enc.pval;dip=spc.dip;dip_p=spc.pval;
         for i=1:length(snrs)
+            fprintf(f,'%s\t',ip_smp_id{i});
+            fprintf(f,'%s\t',input_smp_id{i});
             fprintf(f,'%g\t',100*(q{i}-p{i}));
             fd=fdrs{i};
             fprintf(f,'%g\t',fd('all'));
@@ -154,6 +156,16 @@ elseif strcmp(subr,'batch')
             fprintf(f,'%g\t',enc_p{i});
             fprintf(f,'%g\t',dip{i});
             fprintf(f,'%g\n',dip_p{i});
+        end
+        fclose(f);
+        try, f=fopen([outf '.msg'],'a'); catch me, end
+        for i=1:length(snrs.err_str)
+            fprintf(f,'%s\n',ip_smp_id{i});
+            s=snrs.err_str{i};
+            for j=1:length(s)
+                fprintf(f,'%s\n',s{j});
+            end
+            fprintf(f,'===============================================');
         end
         fclose(f);
 elseif strcmp(subr,'IPStrength')
@@ -689,18 +701,23 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
         fd('histone_normal')=1;fd('tfbs_cancer')=1;fd('histone_cancer')=1;
     else
         try
-        load('fdr_data.mat','qval');
-        fd=containers.Map;
-        kz=qval.keys;
-        fdflg=1;
+        load('fdr_data.mat');
+        fd=containers.Map; %FDRs indexed by sub-population id:                 
+        kz={'all', 'histone_cancer', 'histone_normal','tfbs_cancer', 'tfbs_normal'};
+        zval=norminv(1-pval);
+        fd('all')=(1-normcdf(zval,nanmean(zvalnull),nanstd(zvalnull)))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt),nanstd(zvalalt)));
+        fd('histone_cancer')=(1-normcdf(zval,nanmean(zvalnull_his_can),nanstd(zvalnull_his_can)))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_his_can),nanstd(zvalalt_his_can)));
+        fd('histone_normal')=(1-normcdf(zval,nanmean(zvalnull_his_norm),nanstd(zvalnull_his_norm)))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_his_norm),nanstd(zvalalt_his_norm)));
+        fd('tfbs_cancer')=(1-normcdf(zval,nanmean(zvalnull_tfbs_can),nanstd(zvalnull_tfbs_can)))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_tfbs_can),nanstd(zvalalt_tfbs_can)));
+        fd('tfbs_normal')=(1-normcdf(zval,nanmean(zvalnull_tfbs_norm),nanstd(zvalnull_tfbs_norm)))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_tfbs_norm),nanstd(zvalalt_tfbs_norm)));
+        fdflg=1; ht=1;
         for i=1:length(kz)
-            %identify the fdr corresponding to the p-value for the user's data
-            if pval>=max(qval(kz{i}).t),fd(kz{i})=max(qval(kz{i}).q);ht=0;
-            elseif pval<=min(qval(kz{i}).t), fd(kz{i})=min(qval(kz{i}).q);ht=1;
-            else
-                fd(kz{i})=interp1(qval(kz{i}).t,qval(kz{i}).q,pval);
-                fdflg=(fdflg && (fd(kz{i})>0.05|isnan(fd(kz{i}))|isinf(fd(kz{i}))));
-            end
+            fdflg=(fdflg && (fd(kz{i})>0.05|isnan(fd(kz{i}))|isinf(fd(kz{i}))));
         end
         if fdflg,ht=0;end
         if ht==0,
@@ -716,7 +733,7 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
             out_str{out_idx}=t{end};out_idx=out_idx+1;
             t{length(t)+1}=sprintf('all samples\ttfbs normal\thistone normal\ttfbs cancer\thistone cancer');
             out_str{out_idx}=t{end};out_idx=out_idx+1;
-            t{length(t)+1}=sprintf('%f\t%f\t%f\t%f\t%f',[fd('all') ...
+            t{length(t)+1}=sprintf('%g\t%g\t%g\t%g\t%g',[fd('all') ...
                                 fd('tfbs_normal') fd('histone_normal') ...
                                 fd('tfbs_cancer') fd('histone_cancer')]);
             out_str{out_idx}=t{end};out_idx=out_idx+1;
@@ -731,7 +748,7 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
             out_str{out_idx}=t{end};out_idx=out_idx+1;
             t{length(t)+1}=sprintf('all samples\ttfbs normal\thistone normal\ttfbs cancer\thistone cancer');
             out_str{out_idx}=t{end};out_idx=out_idx+1;
-            t{length(t)+1}=sprintf('%f\t%f\t%f\t%f\t%f',[fd('all') ...
+            t{length(t)+1}=sprintf('%g\t%g\t%g\t%g\t%g',[fd('all') ...
                                 fd('tfbs_normal') fd('histone_normal') ...
                                 fd('tfbs_cancer') fd('histone_cancer')]);
             out_str{out_idx}=t{end};out_idx=out_idx+1;

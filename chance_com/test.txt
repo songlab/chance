@@ -1,0 +1,3 @@
+IP	Input	Percent_enrichment	FDR	FDR_cancer_tfbs	FDR_cancer_histone	FDR_normal_tfbs	FDR_normal_histone	Known_peaks_binding_odds	Known_peaks_pvalue	Input_bias	Input_bias_pvlaue
+62.2314	IP	Input	Percent_enrichment	FDR	FDR_cancer_tfbs	FDR_cancer_histone	FDR_normal_tfbs	FDR_normal_histone	Known_peaks_binding_odds	Known_peaks_pvalue	Input_bias	Input_bias_pvlaue
+62.2314	0.00129032	0.00167785	0.0185185	0.000172176	0.000420875	12.1195	0.394584	0.0735463	0.65

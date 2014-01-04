@@ -1,0 +1,5 @@
+/songlab/aaron/research/fun_genom/data/haib_tfbs/cancer/A549Pol2Pcr2xDex100nmAlnRep1.mat,/songlab/aaron/research/fun_genom/data/haib_tfbs/cancer/A549RxlchPcr1xDex100nmAlnRep1.mat,A549Pol2Pcr2xDex100nmAlnRep1,A549RxlchPcr1xDex100nmAlnRep1,Pol2,hg19,mat
+/songlab/aaron/research/fun_genom/data/haib_tfbs/cancer/A549Pol2Pcr2xDex100nmAlnRep1.mat,/songlab/aaron/research/fun_genom/data/haib_tfbs/cancer/A549Pol2Pcr2xDex100nmAlnRep2.mat,A549Pol2Pcr2xDex100nmAlnRep1.mat,A549Pol2Pcr2xDex100nmAlnRep2.mat,Pol2,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecCjunStdAlnRep1.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecInputStdAlnRep2.mat,A549Pol2Pcr2xDex100nmAlnRep1,A549RxlchPcr1xDex100nmAlnRep1,Cjun,hg19,mat
+
+

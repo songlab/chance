@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#PBS -e chance_fdrs.err
+#PBS -N chance_fdrs
+#PBS -m ae
+#PBS -l nodes=1:ppn=12:bigmem
+
+matlab -nodesktop -nosplash < /songlab/aaron/research/fun_genom/active_work/chance/gen_fdr_data.m
