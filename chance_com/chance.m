@@ -142,7 +142,7 @@ elseif strcmp(subr,'batch')
                    'FDR_normal_tfbs\tFDR_normal_histone\t' ...
                    'Known_peaks_binding_odds\tKnown_peaks_pvalue\tInput_bias\tInput_bias_pvlaue\n']);
         fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;enc_odz=enc.odz;enc_p=enc.pval;dip=spc.dip;dip_p=spc.pval;
-        for i=1:length(snrs)
+        for i=1:length(snrs.fdrs)
             fprintf(f,'%s\t',ip_smp_id{i});
             fprintf(f,'%s\t',input_smp_id{i});
             fprintf(f,'%g\t',100*(q{i}-p{i}));
@@ -610,7 +610,7 @@ end
 function out=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf)
 s=cell(length(input_smpd),1);%s{i} is a cell array of strings holding the result of the test to be stored in outf{i}
 fdl=s;htl=s;kl=s;ml=s;sz_ipl=s;sz_inputl=s;pl=s;ql=s;
-parfor i=1:length(s)
+for i=1:length(s)
     input_sample=containers.Map;ip_sample=containers.Map;
     input_sample=input_smpd{i};ip_sample=ip_smpd{i};
     [tmps,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_sample(input_smp_id{i}),ip_sample(ip_smp_id{i}));
@@ -719,6 +719,7 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
         for i=1:length(kz)
             fdflg=(fdflg && (fd(kz{i})>0.05|isnan(fd(kz{i}))|isinf(fd(kz{i}))));
         end
+keyboard()
         if fdflg,ht=0;end
         if ht==0,
             out_str={};out_idx=1;
