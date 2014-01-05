@@ -1,5 +1,5 @@
-function out=chance_com(subr,varargin)
-%function chance_com(subr,varargin)
+function out=chance(subr,varargin)
+%function chance(subr,varargin)
 %
 %IN: subr is a subroutine to execute,
 %    varargin: variable argument input of parameter value pairs,
@@ -7,6 +7,7 @@ function out=chance_com(subr,varargin)
 %
 %OUT:
 
+fdr_cut=0.05;
 out=0;
 cmds={'binData','IPStrength','multiIPNorm','batch','compENCODE','spectrum'};
 if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
@@ -132,40 +133,48 @@ elseif strcmp(subr,'batch')
             input_smpd{midx(i)}=sample_data;
         end
         snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
-        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
+        %        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
         spc=batch_spectrum(input_smpd,inputf,input_smp_id,bld,[]);
         if isKey(options,'-o')&&~isempty(options('-o')), outf=options('-o');
         else, outf='chance_output.txt';end
         f=fopen(outf,'a');
-        fprintf(f,['IP\tInput\tPercent_enrichment\tFDR\t' ...
+        fprintf(f,['IP\tInput\ttest\tp-value\tFDR\t' ...
                    'FDR_cancer_tfbs\tFDR_cancer_histone\t' ...
-                   'FDR_normal_tfbs\tFDR_normal_histone\t' ...
-                   'Known_peaks_binding_odds\tKnown_peaks_pvalue\tInput_bias\tInput_bias_pvlaue\n']);
-        fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;enc_odz=enc.odz;enc_p=enc.pval;dip=spc.dip;dip_p=spc.pval;
+                   'FDR_normal_tfbs\tFDR_normal_histone\tFDR_comb\t' ...
+                   'Input_bias\tInput_bias_pvlaue\n']);
+        pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;
+        %enc_odz=enc.odz;enc_p=enc.pval;
+        dip=spc.dip;dip_p=spc.pval;
         for i=1:length(snrs.fdrs)
+            fd=fdrs{i};
+            mfdr=min([fd('all'),fd('tfbs_cancer'),fd('histone_cancer'),fd('tfbs_normal'),fd('histone_normal')]);
             fprintf(f,'%s\t',ip_smp_id{i});
             fprintf(f,'%s\t',input_smp_id{i});
-            fprintf(f,'%g\t',100*(q{i}-p{i}));
-            fd=fdrs{i};
-            fprintf(f,'%g\t',fd('all'));
+            if mfdr<=fdr_cut,fprintf(f,'PASS\t');
+            else, fprintf(f,'FAIL\t'); end
+            fprintf(f,'%g\t',pvals{i});
+            fprintf(f,'%g\t',mfdr);
             fprintf(f,'%g\t',fd('tfbs_cancer'));
             fprintf(f,'%g\t',fd('histone_cancer'));
             fprintf(f,'%g\t',fd('tfbs_normal'));
             fprintf(f,'%g\t',fd('histone_normal'));
-            fprintf(f,'%g\t',enc_odz{i});
-            fprintf(f,'%g\t',enc_p{i});
+            fprintf(f,'%g\t',fd('all'));
+            %            fprintf(f,'%g\t',enc_odz{i});
+            %            fprintf(f,'%g\t',enc_p{i});
             fprintf(f,'%g\t',dip{i});
             fprintf(f,'%g\n',dip_p{i});
         end
         fclose(f);
         try, f=fopen([outf '.msg'],'a'); catch me, end
         for i=1:length(snrs.err_str)
-            fprintf(f,'%s\n',ip_smp_id{i});
+            fprintf(f,'================================ ');
+            fprintf(f,'%s',ip_smp_id{i});
+            fprintf(f,' ================================\n');
             s=snrs.err_str{i};
             for j=1:length(s)
                 fprintf(f,'%s\n',s{j});
             end
-            fprintf(f,'===============================================');
+            fprintf(f,'\n');
         end
         fclose(f);
 elseif strcmp(subr,'IPStrength')
@@ -609,45 +618,32 @@ end
 
 function out=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf)
 s=cell(length(input_smpd),1);%s{i} is a cell array of strings holding the result of the test to be stored in outf{i}
-fdl=s;htl=s;kl=s;ml=s;sz_ipl=s;sz_inputl=s;pl=s;ql=s;
-for i=1:length(s)
+fdl=s;htl=s;kl=s;ml=s;sz_ipl=s;sz_inputl=s;pl=s;ql=s;pvall=s;
+parfor i=1:length(s)
     input_sample=containers.Map;ip_sample=containers.Map;
     input_sample=input_smpd{i};ip_sample=ip_smpd{i};
-    [tmps,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_sample(input_smp_id{i}),ip_sample(ip_smp_id{i}));
+    [tmps,fd,ht,k,m,sz_ip,sz_input,p,q,pval]=ip_strength(input_sample(input_smp_id{i}),ip_sample(ip_smp_id{i}));
     s{i}=tmps;fdl{i}=fd;htl{i}=ht;kl{i}=k;ml{i}=m;sz_ipl{i}=sz_ip;
-    sz_inputl{i}=sz_input;pl{i}=p;ql{i}=q;
+    sz_inputl{i}=sz_input;pl{i}=p;ql{i}=q;pvall{i}=pval;
 end
 out.fdrs=fdl; %cell array of FDR estimate maps, cf. f=fdrs{i},f.keys
 out.ht=htl; %hypothesis test for enrichment 
 out.err_str=s; %error messages
 out.k=kl; %k/m is the fraction of bins enriched for signal
 out.m=ml;
-out.sz_ip=sz_ipl;
-out.sz_input=sz_inputl;
+out.sz_ip=sz_ipl;%IP seq depth
+out.sz_input=sz_inputl;%Input seq depth
 out.p=pl;
 out.q=ql;
-if ~isempty(outf)
-    for i=1:length(s)
-        try, f=fopen(outf{i},'w');catch me, disp(['error opening output file ' outf{i}]),end
-        fprintf(f,'IP_file,%s\n',ipf{i});fprintf(f,'Input_file,%s\n',inputf{i});
-        fprintf(f,'IP_sample_id,%s\n',ip_smp_id{i});fprintf(f,'Input_sample_id,%s\n',input_smp_id{i});
-        fprintf(f,'pass,%g\n',htl{i});fd=fdl{i};
-        fprintf(f,'fdr,%g\n',fd('all'));fprintf(f,'tfbs_normal_fdr,%g\n',fd('tfbs_normal'));
-        fprintf(f,'histone_normal_fdr,%g\n',fd('histone_normal'));fprintf(f,'tfbs_cancer_fdr,%g\n',fd('tfbs_cancer'));
-        fprintf(f,'histone_cancer_fdr,%g\n',fd('histone_cancer'));fprintf(f,'percent_genome_enriched,%g\n',(100-100*kl{i}/ml{i}));
-        fprintf(f,'input_scaling_factor,%g\n',(pl{i}*sz_ipl{i})/(ql{i}*sz_inputl{i}));
-        fprintf(f,'differential_percentage_enrichment,%g\n',100*(ql{i}-pl{i}));
-        t=s{i};for j=1:length(t),fprintf(f,'%s\n',t{j});end
-        if f~=-1,fclose(f);end
-    end
-end
+out.pval=pvall;%divergence test z-score
 
-function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
+function [t,fd,ht,k,m,sz_ip,sz_input,p,q,pval]=ip_strength(input_data,ip_data)
     t={};
     [p,q,ht,pval,k,m,sz_ip,sz_input,f,err]=comp_scaling_factor(ip_data.dens,input_data.dens,[0,0]);
-    t{1}=['p,' num2str(p)];t{2}=['q,' num2str(q)];t{3}=['ht,' num2str(ht)];
-    t{4}=['pval,' num2str(pval)];t{5}=['k,' num2str(k)];t{6}=['m,' num2str(m)];
-    t{7}=['sz_ip,' num2str(sz_ip)];t{8}=['sz_input,' num2str(sz_input)];
+    zval=norminv(1-pval);
+    t{1}=['p,' num2str(p)];t{2}=['q,' num2str(q)];
+    t{3}=['pval,' num2str(pval)];t{4}=['k,' num2str(k)];t{5}=['m,' num2str(m)];
+    t{6}=['sz_ip,' num2str(sz_ip)];t{7}=['sz_input,' num2str(sz_input)];
     err_str={};err_idx=1;
     if any(err==1)
         t{length(t)+1}='';    
@@ -704,7 +700,6 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
         load('fdr_data.mat');
         fd=containers.Map; %FDRs indexed by sub-population id:                 
         kz={'all', 'histone_cancer', 'histone_normal','tfbs_cancer', 'tfbs_normal'};
-        zval=norminv(1-pval);
         fd('all')=(1-normcdf(zval,nanmean(zvalnull),nanstd(zvalnull)))/(1-normcdf(zval, ...
                                                           nanmean(zvalalt),nanstd(zvalalt)));
         fd('histone_cancer')=(1-normcdf(zval,nanmean(zvalnull_his_can),nanstd(zvalnull_his_can)))/(1-normcdf(zval, ...
@@ -719,7 +714,6 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_data,ip_data)
         for i=1:length(kz)
             fdflg=(fdflg && (fd(kz{i})>0.05|isnan(fd(kz{i}))|isinf(fd(kz{i}))));
         end
-keyboard()
         if fdflg,ht=0;end
         if ht==0,
             out_str={};out_idx=1;
