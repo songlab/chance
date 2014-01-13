@@ -1,103 +1,50 @@
-Usage summary:
+*********************************************************
+USAGE SUMMARY:
 
-run_chance.sh /PATH/TO/MCR binData -b build -t file_type -s sample_id -o output_file -f file
-run_chance.sh /PATH/TO/MCR binData -p parameters_file
-run_chance.sh /PATH/TO/MCR IPStrength -b build -t file_type -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)
-run_chance.sh /PATH/TO/MCR IPStrength -p parameters_file
-run_chance.sh /PATH/TO/MCR multiIPNorm -p parameters_file
-run_chance.sh /PATH/TO/MCR compENCODE -b build -t file_type -o output_file -e experiment_type --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)
-run_chance.sh /PATH/TO/MCR compENCODE -p parameters_file
-run_chance.sh /PATH/TO/MCR spectrum -b build -t file_type (-s sample_id) -o output_file -f file_name -s sample_id
-run_chance.sh /PATH/TO/MCR spectrum -p parameters_file
+run_chance.sh /PATH/TO/MCR batch -p parameter_file -o output_file
 
+Note: parameter_file and output_file should be the full paths to the respective files.
 
-Parameters:
+*********************************************************
+PARAMETER FILE FORMAT:
 
--b : build, one of hg18, hg19, or mm9
--t : file type, one of bed, bam, sam, mat, bowtie, or tagAlign
--s : sample id, any string
--o : output file to write
--f : input file name
--e : experiment id, see hg19_experiment_list.txt and mm9_experiment_list.txt for valid experiment ids
--p : parameter file name
+The parameter file are comma separated values with no headers. Place one line per file to process. Each line must have the following format:
 
---ipfile : file name of the IP sample
---inputfile : file name of the Input sample
---ipsample : sample id of the IP sample
---inputsample : sample id of the Input sample
+IP_file_name,Input_file_name,IP_sample_ID,Input_sample_ID,TF_name,Build,File_type
 
-Note: The --ipsample and --inputsample parameters are only used in calls to IPStrength and compENCODE if the file type (-t) is set to mat.
-The --s parameter is only used in calls to spectrum when the file type (-t) is set to mat.
+IP_file_name : the full path to the IP sample
+Input_file_name : the full path to the Input sample
+IP_sample_ID : any string, will identify the IP sample in the CHANCE output file
+Input_sample_ID : any string, will identify the Input sample in the CHANCE output file
+TF_name : a string identifying the transcription factor or epigenetic mark ChIP'ed for
+Build: a string indicating the organism, either "hg19" or "mm9"
+File_type : a string indicating the type of file storing the alignments, one of: "bam", "sam", "bowtie", "bed", "tagAlign", or "mat". BAM file format is fastest aside from MAT, which is the matlab format for samples saved from a CHANCE gui session.
 
-Parameter file formats:
+*********************************************************
+CHANCE OUTPUT FILE FORMAT:
 
-Parameter files can be used to batch the processing of multiple files. The MCR will allocate a worker for each available core on the host machine, up to 12 workers. All parameter files are comma separated values with no headers.
-Place one line per file to process. See the example_parameter_files directory for examples. The formats are as follows:
+CHANCE outputs two files output_file and output_file.msg. 
+output_file is a tab separated values file with the following fields:
 
-binData:
-in_file_name,output_file,sample_id,build,file_type
+IP : the ID string of the IP sample
+Input : the ID string of the Input sample
+test : sample classification string, one of:
+     PASS - the sample shows significant signal at an FDR <= 5%
+     WEAK - the sample shows significant signal at 5% < FDR <=10%
+     FAIL - the sample does NOT show significant signal, FDR > 10%
+p-value : the p-value for the divergence test used to classify sample
+	(you might want to threshold this value yourself instead of using
+	FDRs computed by CHANCE)
+FDR : this is a q-value (positive FDR) defined as the minimum q-value (Fisher's method)
+    computed over any of the following 5 subsets of ENCODE training data
+FDR_cancer_tfbs : FDR for transcription factor binding site ChIPs in cancer cells
+FDR_cancer_histone : FDR for epigenetic mark ChIPs in cancer cells
+FDR_cancer_tfbs : FDR for transcription factor binding site ChIPs in normal cells
+FDR_cancer_tfbs : FDR for epigenetic mark ChIPs in normal cells
+FDR_cancer_tfbs : FDR for the combined dataset
+Input_bias : a test statistic measuring bias in the sample, when this metric is high the
+	   ChIP may have worked but the sample will have low statistical power due
+	   to bias in the library preparation.
+Input_bias_pvalue : a p-value for the Input_bias test statistic 
 
-IPStrength:
-IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,output_file_name,build,file_type
-
-multiIPNorm:
-IP1_file_name,IP1_sample_name,output_file_name,build,file_type
-IP2_file_name,IP2_sample_name,output_file_name,build,file_type
-...
-
-compENCODE:
-IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,exp_id,output_file,build,file_type
-
-spectrum:
-in_file_name,sample_id,output_file,build,file_type
-
-CHANCE output files:
-
-binData:
-produces a CHANCE binary file for each input file. The CHANCE binary can be read by both the CHANCE gui and other CHANCE command line tools.
-Additionally, nucleotide frequency histograms as a function of base call are stored in output_file_(A,C,G,T,N)freq.csv
-
-IPStrength:
-produces a text file. The initial portion are comma separated values, two per line. Each line is a variable/value pair. The second portion
-is a descriptive message describing the result of the estimation and any warnings about the sample. The first portion by line are:
-IP_file_name
-Input_file_name
-IP_sample_id
-Input_sample_id
-pass (reject null hypothesis that the IP distributes cumulative tag density to the quantiles of tag count indistinguishibly from Input)
-fdr (false discovery rate for classifying ENCODE data at the significance level of the user's sample, over all ENCODE samples) 
-tfbs_normal_fdr (false discovery rate for classifying ENCODE data at the significance level of the user's sample, over all ENCODE transcription factor binding site normal samples) 
-tfbs_cancer_fdr (false discovery rate for classifying ENCODE data at the significance level of the user's sample, over all ENCODE transcription factor binding site cancer samples) 
-histone_cancer_fdr (false discovery rate for classifying ENCODE data at the significance level of the user's sample, over all ENCODE histone mark cancer samples) 
-histone_normal_fdr (false discovery rate for classifying ENCODE data at the significance level of the user's sample, over all ENCODE histone mark normal samples) 
-percent_genome_enriched
-input_scaling_factor (scale input by this ammount)
-differential_percentage_enrichment
-
-multiIPNorm:
-produces a text file containing the results of multi-sample normalization. This contains a descriptive message providing the scaling factors for normalizaio,.
-the false discovery rate in assessing agreement of individual samples with the consensus, and the matrix of pairwise sample differential enrichment.
-
-compENCODE:
-produces a text file. The initial portion are comma separated values, two per line. Each line is a variable/value pair. The second portion
-is a descriptive message describing the result of the comparison. The first portion by line are:
-IP_file_name
-Input_file_name
-IP_sample_id
-Input_sample_id
-experiment_id
-odds ratio (the union peaks to background, IP to Input, odds ratio)
-probability (the probability of the log odds under a normal model of all logs odds from ENCODE of the same experiment type)
-
-spectrum:
-produces a text file. The initial portion are comma separated values, two per line. Each line is a variable/value pair. The second portion
-is a descriptive message describing the result of the spectral analysis. The first portion by line are:
-
-in_file_name
-sample_id
-build
-energy in the approximation coefficients of the user's sample
-energy in the approximation coefficients of the Poisson simulation
-
-In addition the spectrum subroutine produces percentage energy in the detail coefficients as a function of wavelet level for the user's sample,
-stored in output_file_user_hist.csv and the Poisson simmulation, stored in output_file_sim_hist.csv 
+output_file.msg is a descriptive file with one entry per sample. Each entry contains error messages and warnings regarding the sample, scaling factors, and other descriptive metrics.

@@ -112,14 +112,15 @@ elseif strcmp(subr,'batch')
         nidx=setdiff([1:length(typ)],midx);
         if ~isempty(nidx)
             i=1;
-            while i<=ceil(length(nidx)/12)
-                k=[(i-1)*12+1,min(length(nidx),i*12)];
+            while i<=ceil(length(nidx)/12)%process Input files, in
+                                          %batches of 12
+                k=[(i-1)*12+1:min(length(nidx),i*12)];
                 input_smpd(nidx(k))=par_bin_data(inputf(nidx(k)),input_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
                 i=i+1;
             end
             i=1;
-            while i<=ceil(length(nidx)/12)
-                k=[(i-1)*12+1,min(length(nidx),i*12)];
+            while i<=ceil(length(nidx)/12)%process IP files likewise
+                k=[(i-1)*12+1:min(length(nidx),i*12)];
                 ip_smpd(nidx(k))=par_bin_data(ipf(nidx(k)),ip_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
                 i=i+1;
             end
@@ -150,7 +151,8 @@ elseif strcmp(subr,'batch')
             mfdr=min([fd('all'),fd('tfbs_cancer'),fd('histone_cancer'),fd('tfbs_normal'),fd('histone_normal')]);
             fprintf(f,'%s\t',ip_smp_id{i});
             fprintf(f,'%s\t',input_smp_id{i});
-            if mfdr<=fdr_cut,fprintf(f,'PASS\t');
+            if mfdr<=fdr_cut, fprintf(f,'PASS\t');
+            elseif mfdr<=2*fdr_cut, fprintf(f,'WEAK\t');
             else, fprintf(f,'FAIL\t'); end
             fprintf(f,'%g\t',pvals{i});
             fprintf(f,'%g\t',mfdr);
@@ -651,7 +653,7 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q,pval]=ip_strength(input_data,ip_data)
         err_str{err_idx}=t{end};err_idx=err_idx+1;
         t{length(t)+1}='indicating a potentially insufficient depth';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
-        t{length(t)+1}='of sequencing in the IP channel.';
+        t{length(t)+1}='of coverage in the IP channel.';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
         t{length(t)+1}='The false negative rate in peak calling';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
@@ -664,7 +666,7 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q,pval]=ip_strength(input_data,ip_data)
         err_str{err_idx}=t{end};err_idx=err_idx+1;
         t{length(t)+1}='indicating a potentially insufficient depth';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
-        t{length(t)+1}='of sequencing in the Input channel.';
+        t{length(t)+1}='of coverage in the Input channel.';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
         t{length(t)+1}='The false positive rate in peak calling';
         err_str{err_idx}=t{end};err_idx=err_idx+1;
@@ -699,17 +701,34 @@ function [t,fd,ht,k,m,sz_ip,sz_input,p,q,pval]=ip_strength(input_data,ip_data)
         try
         load('fdr_data.mat');
         fd=containers.Map; %FDRs indexed by sub-population id:                 
-        kz={'all', 'histone_cancer', 'histone_normal','tfbs_cancer', 'tfbs_normal'};
-        fd('all')=(1-normcdf(zval,nanmean(zvalnull),nanstd(zvalnull)))/(1-normcdf(zval, ...
-                                                          nanmean(zvalalt),nanstd(zvalalt)));
-        fd('histone_cancer')=(1-normcdf(zval,nanmean(zvalnull_his_can),nanstd(zvalnull_his_can)))/(1-normcdf(zval, ...
-                                                          nanmean(zvalalt_his_can),nanstd(zvalalt_his_can)));
-        fd('histone_normal')=(1-normcdf(zval,nanmean(zvalnull_his_norm),nanstd(zvalnull_his_norm)))/(1-normcdf(zval, ...
-                                                          nanmean(zvalalt_his_norm),nanstd(zvalalt_his_norm)));
-        fd('tfbs_cancer')=(1-normcdf(zval,nanmean(zvalnull_tfbs_can),nanstd(zvalnull_tfbs_can)))/(1-normcdf(zval, ...
-                                                          nanmean(zvalalt_tfbs_can),nanstd(zvalalt_tfbs_can)));
-        fd('tfbs_normal')=(1-normcdf(zval,nanmean(zvalnull_tfbs_norm),nanstd(zvalnull_tfbs_norm)))/(1-normcdf(zval, ...
-                                                          nanmean(zvalalt_tfbs_norm),nanstd(zvalalt_tfbs_norm)));
+        kz={'all', 'histone_cancer', 'histone_normal','tfbs_cancer', ...
+            'tfbs_normal'};
+        cut=0.7;
+        nx=find(zvalnull<=quantile(zvalnull,cut)&zvalnull>=quantile(zvalnull,1-cut));
+        ax=find(zvalalt<=quantile(zvalalt,cut)&zvalalt>=quantile(zvalalt,1-cut));
+        fd('all')=(1-normcdf(zval,nanmean(zvalnull(nx)),nanstd(zvalnull(nx))))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt(ax)),nanstd(zvalalt(ax))));
+        nx=find(zvalnull_his_can<=quantile(zvalnull_his_can,cut)&zvalnull_his_can>=quantile(zvalnull_his_can,1-cut));
+        ax=find(zvalalt_his_can<=quantile(zvalalt_his_can,cut)&zvalalt_his_can>=quantile(zvalalt_his_can,1-cut));
+        fd('histone_cancer')=(1-normcdf(zval,nanmean(zvalnull_his_can(nx)),nanstd(zvalnull_his_can(nx))))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_his_can(ax)),nanstd(zvalalt_his_can(ax))));
+        nx=find(zvalnull_his_norm<=quantile(zvalnull_his_norm,cut)&zvalnull_his_norm>=quantile(zvalnull_his_norm,1-cut));
+        ax=find(zvalalt_his_norm<=quantile(zvalalt_his_norm,cut)&zvalalt_his_norm>=quantile(zvalalt_his_norm,1-cut));
+        fd('histone_normal')=(1-normcdf(zval,nanmean(zvalnull_his_norm(nx)),nanstd(zvalnull_his_norm(nx))))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_his_norm(ax)),nanstd(zvalalt_his_norm(ax))));
+        nx=find(zvalnull_tfbs_can<=quantile(zvalnull_tfbs_can,cut)&zvalnull_tfbs_can>=quantile(zvalnull_tfbs_can,1-cut));
+        ax=find(zvalalt_tfbs_can<=quantile(zvalalt_tfbs_can,cut)&zvalalt_tfbs_can>=quantile(zvalalt_tfbs_can,1-cut));
+        fd('tfbs_cancer')=(1-normcdf(zval,nanmean(zvalnull_tfbs_can(nx)),nanstd(zvalnull_tfbs_can(nx))))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_tfbs_can(ax)),nanstd(zvalalt_tfbs_can(ax))));
+        nx=find(zvalnull_tfbs_norm<=quantile(zvalnull_tfbs_norm,cut)&zvalnull_tfbs_norm>=quantile(zvalnull_tfbs_norm,1-cut));
+        ax=find(zvalalt_tfbs_norm<=quantile(zvalalt_tfbs_norm,cut)&zvalalt_tfbs_norm>=quantile(zvalalt_tfbs_norm,1-cut));
+        fd('tfbs_normal')=(1-normcdf(zval,nanmean(zvalnull_tfbs_norm(nx)),nanstd(zvalnull_tfbs_norm(nx))))/(1-normcdf(zval, ...
+                                                          nanmean(zvalalt_tfbs_norm(ax)),nanstd(zvalalt_tfbs_norm(ax))));
+        fd('all')=min(1,fd('all'));
+        fd('histone_cancer')=min(1,fd('histone_cancer'));
+        fd('histone_normal')=min(1,fd('histone_normal'));
+        fd('tfbs_cancer')=min(1,fd('tfbs_cancer'));
+        fd('tfbs_normal')=min(1,fd('tfbs_normal'));
         fdflg=1; ht=1;
         for i=1:length(kz)
             fdflg=(fdflg && (fd(kz{i})>0.05|isnan(fd(kz{i}))|isinf(fd(kz{i}))));
