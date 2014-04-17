@@ -10,12 +10,10 @@ function out=chance(subr,varargin)
 fdr_cut=0.05; %default FDR cutoff
 out=0;
 %parse input params
-cmds={'binData','IPStrength','batch','spectrum'};
+cmds={'binData','batch'};
 if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
-elseif strcmp(subr,'IPStrength')
-    options = containers.Map({'-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[]});
 elseif strcmp(subr,'batch')
     options = containers.Map({'-p','-o'},{[],[]});
 end
@@ -96,7 +94,7 @@ elseif strcmp(subr,'batch')
         load('hg19lengths.mat');hg19_chr_lens=chr_lens;
         load('mm9lengths.mat');mm9_chr_lens=chr_lens;
         clear chr_lens;
-        for i=1:length(D{1})
+        for i=1:length(D{1})%set up data structures for sample data/metadata
             ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
             tf_name{i}=D{5}{i};bld{i}=D{6}{i};typ{i}=D{7}{i};
             if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
@@ -107,14 +105,13 @@ elseif strcmp(subr,'batch')
         nidx=setdiff([1:length(typ)],midx);
         if ~isempty(nidx)
             i=1;
-            while i<=ceil(length(nidx)/12)%process Input files, in
-                                          %batches of 12
+            while i<=ceil(length(nidx)/12)%bin Input files, in batches of 12
                 k=[(i-1)*12+1:min(length(nidx),i*12)];
                 input_smpd(nidx(k))=par_bin_data(inputf(nidx(k)),input_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
                 i=i+1;
             end
             i=1;
-            while i<=ceil(length(nidx)/12)%process IP files likewise
+            while i<=ceil(length(nidx)/12)%bin IP files
                 k=[(i-1)*12+1:min(length(nidx),i*12)];
                 ip_smpd(nidx(k))=par_bin_data(ipf(nidx(k)),ip_smp_id(nidx(k)),bld(nidx(k)),chr_lens(nidx(k)),typ(nidx(k)));
                 i=i+1;
@@ -130,6 +127,7 @@ elseif strcmp(subr,'batch')
         end
         snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
         %        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
+        bidx=batch_effects(input_smpd,input_smp_id);
         spc=batch_spectrum(input_smpd,inputf,input_smp_id,bld,[]);
         if isKey(options,'-o')&&~isempty(options('-o')), outf=options('-o');
         else, outf='chance_output.txt';end
@@ -137,7 +135,7 @@ elseif strcmp(subr,'batch')
         fprintf(f,['IP\tInput\ttest\tp-value\tFDR\t' ...
                    'FDR_cancer_tfbs\tFDR_cancer_histone\t' ...
                    'FDR_normal_tfbs\tFDR_normal_histone\tFDR_comb\t' ...
-                   'Input_bias\tInput_bias_pvlaue\n']);
+                   'Input_bias\tInput_bias_pvlaue\tbatch\n']);
         pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;
         dip=spc.dip;dip_p=spc.pval;
         for i=1:length(snrs.fdrs) %write the results to a tsv-file
@@ -158,80 +156,26 @@ elseif strcmp(subr,'batch')
             %            fprintf(f,'%g\t',enc_odz{i});
             %            fprintf(f,'%g\t',enc_p{i});
             fprintf(f,'%g\t',dip{i});
-            fprintf(f,'%g\n',dip_p{i});
+            fprintf(f,'%g\t',dip_p{i});
+            fprintf(f,'%i\n',bidx(i));
         end
         fclose(f);
         try, f=fopen([outf '.msg'],'a'); catch me, end
         for i=1:length(snrs.err_str) %write detailed error msgs to a separate file
             fprintf(f,'================================ ');
             fprintf(f,'%s',ip_smp_id{i});
-            fprintf(f,' ================================\n');
+            fprintf(f,'================================\n');
             s=snrs.err_str{i};
             for j=1:length(s)
                 fprintf(f,'%s\n',s{j});
             end
             fprintf(f,'\n');
         end
+        if max(bidx)>1
+            fprintf(f,'================================\n');
+            fprintf(f,['Batch effects detected. ' num2str(max(bidx)) ' batches identified.']);
+        end
         fclose(f);
-elseif strcmp(subr,'IPStrength')
-        %valid options
-        %'-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'
-        bld=options('-b');
-        if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
-            disp('valid build options are hg18, hg19, mm9, or tair10')
-            return;
-        end
-        typ=options('-t');
-        if isempty(typ)||~ismember(typ,{'bam','sam','bed','bowtie','tagAlign','mat'})
-            disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
-            return;
-        end
-        load([bld 'lengths.mat']);
-        if strcmp(options('-t'),'mat')
-            if ~exist(options('--inputfile'),'file')
-                disp(['File ' options('--inputfile') ' not found...exiting.']);
-            end
-            load(options('--inputfile'));
-            if ~exist('sample_data','var')
-                disp(['Sample ' options('--inputsample') ' not found...exiting.']);
-            end
-            input_sample=sample_data(options('--inputsample'));
-            if ~exist(options('--ipfile'),'file')
-                disp(['File ' options('--ipfile') ' not found...exiting.']);
-            end
-            load(options('--ipfile'));
-            if ~exist('sample_data','var')
-                disp(['Sample ' options('--ipsample') ' not found...exiting.']);
-            end
-            ip_sample=sample_data(options('--ipsample'));
-        else
-            %load ip file
-            [d,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
-            chrs=d.keys;n=0;
-            for i=1:length(chrs),n=n+sum(d(chrs{i}));end
-            smp.nreads=n;smp.genome=bld;
-            smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred_hist;
-            ip_sample=smp;
-            %load input file
-            [d,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
-            chrs=d.keys;n=0;
-            for i=1:length(chrs),n=n+sum(d(chrs{i}));end
-            smp.nreads=n;smp.genome=bld;
-            smp.dens=d;smp.nuc_freq=nuc_freq;smp.phred=phred_hist;
-            input_sample=smp;
-        end
-        [s,fd,ht,k,m,sz_ip,sz_input,p,q]=ip_strength(input_sample,ip_sample);
-        try, f=fopen(options('-o'),'w');catch me, disp(['error opening output file ' options('-o')]),end
-        fprintf(f,'IP_file,%s\n',options('--ipfile'));fprintf(f,'Input_file,%s\n',options('--inputfile'));
-        fprintf(f,'IP_sample_id,%s\n',options('--ipsample'));fprintf(f,'Input_sample_id,%s\n',options('--inputsample'));
-        fprintf(f,'pass,%g\n',ht);
-        fprintf(f,'fdr,%g\n',fd('all'));fprintf(f,'tfbs_normal_fdr,%g\n',fd('tfbs_normal'));
-        fprintf(f,'histone_normal_fdr,%g\n',fd('histone_normal'));fprintf(f,'tfbs_cancer_fdr,%g\n',fd('tfbs_cancer'));
-        fprintf(f,'histone_cancer_fdr,%g\n',fd('histone_cancer'));fprintf(f,'percent_genome_enriched,%g\n',(100-100*k/m));
-        fprintf(f,'input_scaling_factor,%g\n',(p*sz_ip)/(q*sz_input));
-        fprintf(f,'differential_percentage_enrichment,%g\n',100*(q-p));
-        for j=1:length(s),fprintf(f,'%s\n',s{j});,end
-        if f~=-1,fclose(f);end
 end
 matlabpool close;
 
@@ -278,6 +222,7 @@ if ~isempty(outf)
     end
 end
 
+%needs to be retrained on current encode data
 function out=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,exp_id,bld,outf)
 s=cell(length(input_smpd),1);
 odl=s;pl=s;
@@ -532,8 +477,6 @@ function out=disp_help()
 s=sprintf('CHANCE usage:\n');
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -b build -t file_type -s sample_id -o output_file -f file\n')];
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -p parameters_file\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR IPStrength -b build -t file_type -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR IPStrength -p parameters_file\n')];
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR batch -p parameters_file\n')];
 disp(s);
 out=0; 
