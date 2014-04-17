@@ -7,27 +7,22 @@ function out=chance(subr,varargin)
 %
 %OUT:
 
-fdr_cut=0.05;
+fdr_cut=0.05; %default FDR cutoff
 out=0;
-cmds={'binData','IPStrength','multiIPNorm','batch','compENCODE','spectrum'};
+%parse input params
+cmds={'binData','IPStrength','batch','spectrum'};
 if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
 elseif strcmp(subr,'IPStrength')
-    options = containers.Map({'-p','-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[]});
-elseif strcmp(subr,'multiIPNorm')
-    options = containers.Map({'-p'},{[]});
+    options = containers.Map({'-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[]});
 elseif strcmp(subr,'batch')
     options = containers.Map({'-p','-o'},{[],[]});
-elseif strcmp(subr,'compENCODE')
-    options = containers.Map({'-p','-b','-t','-o','-e','--ipfile','--ipsample','--inputfile','--inputsample'},{[],[],[],[],[],[],[],[],[]});
-elseif strcmp(subr,'spectrum')
-    options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
 end
 optionNames = options.keys;
 nArgs = length(varargin);
 if round(nArgs/2)~=nArgs/2,disp_help();return;end
-for pair = reshape(varargin,2,[]) %# pair is {propName;propValue}
+for pair = reshape(varargin,2,[]) %pair is {propName;propValue}
    inpName = lower(pair{1});
    if any(strmatch(inpName,optionNames))
       options(inpName) = pair{2};
@@ -49,10 +44,10 @@ if strcmp(subr,'binData')
         load('mm9lengths.mat');mm9_chr_lens=chr_lens;
         clear chr_lens;
         j=1;
-        while j<length(D{1})
+        while j<length(D{1}) %parse the parameter file and bin the data
             fin={};outf={};smp_id={};bld={};lenf={};typ={};
             i=j;k=1;
-            while i<=j+11&&i<=length(D{1})
+            while i<=j+11&&i<=length(D{1}) %bin data in blocks of 11
                 fin{k}=D{1}{i};outf{k}=D{2}{i};smp_id{k}=D{3}{i};
                 bld{k}=D{4}{i};lenf{k}=[bld{k},'lengths.mat'];typ{k}=D{5}{i};
                 if strcmpi(bld{k},'hg18'),chr_lens{k}=hg18_chr_lens;
@@ -61,7 +56,7 @@ if strcmp(subr,'binData')
                 i=i+1;k=k+1;
             end
             smpd=par_bin_data(fin,smp_id,bld,chr_lens,typ);
-            for i=1:length(fin)
+            for i=1:length(fin) %write the results to a mat-file
                 try
                 sample_data=smpd{i};save(outf{i},'sample_data');
                 catch me
@@ -125,7 +120,7 @@ elseif strcmp(subr,'batch')
                 i=i+1;
             end
         end
-        for i=1:length(midx)
+        for i=1:length(midx) %load all the mat-files directly
             sample_data=[];
             load(ipf{midx(i)});
             ip_smpd{midx(i)}=sample_data;
@@ -144,9 +139,8 @@ elseif strcmp(subr,'batch')
                    'FDR_normal_tfbs\tFDR_normal_histone\tFDR_comb\t' ...
                    'Input_bias\tInput_bias_pvlaue\n']);
         pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;
-        %enc_odz=enc.odz;enc_p=enc.pval;
         dip=spc.dip;dip_p=spc.pval;
-        for i=1:length(snrs.fdrs)
+        for i=1:length(snrs.fdrs) %write the results to a tsv-file
             fd=fdrs{i};
             mfdr=min([fd('all'),fd('tfbs_cancer'),fd('histone_cancer'),fd('tfbs_normal'),fd('histone_normal')]);
             fprintf(f,'%s\t',ip_smp_id{i});
@@ -168,7 +162,7 @@ elseif strcmp(subr,'batch')
         end
         fclose(f);
         try, f=fopen([outf '.msg'],'a'); catch me, end
-        for i=1:length(snrs.err_str)
+        for i=1:length(snrs.err_str) %write detailed error msgs to a separate file
             fprintf(f,'================================ ');
             fprintf(f,'%s',ip_smp_id{i});
             fprintf(f,' ================================\n');
@@ -180,38 +174,6 @@ elseif strcmp(subr,'batch')
         end
         fclose(f);
 elseif strcmp(subr,'IPStrength')
-    if ~isempty(options('-p'))
-        %parameter file must be comma separated values
-        %IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,output_file,build,file_type
-        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
-        catch me, disp('error opening/parsing parameter file, please check file...'),end
-        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
-        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
-        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
-        clear chr_lens;
-        for i=1:length(D{1})
-            ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
-            outf{i}=D{5}{i};bld{i}=D{6}{i};typ{i}=D{7}{i};
-            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
-            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
-            else, chr_lens{i}=mm9_chr_lens;end
-        end
-        midx=find(strcmp(typ,'mat'));
-        nidx=setdiff([1:length(typ)],midx);
-        if ~isempty(nidx)
-            input_smpd(nidx)=par_bin_data(inputf(nidx),input_smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
-            ip_smpd(nidx)=par_bin_data(ipf(nidx),ip_smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
-        end
-        for i=1:length(midx)
-            sample_data=[];
-            load(ipf{midx(i)});
-            ip_smpd{midx(i)}=sample_data;
-            sample_data=[];
-            load(inputf{midx(i)});
-            input_smpd{midx(i)}=sample_data;
-        end
-        snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf);
-    else
         %valid options
         %'-b','-t','-o','--ipfile','--ipsample','--inputfile','--inputsample'
         bld=options('-b');
@@ -226,9 +188,21 @@ elseif strcmp(subr,'IPStrength')
         end
         load([bld 'lengths.mat']);
         if strcmp(options('-t'),'mat')
+            if ~exist(options('--inputfile'),'file')
+                disp(['File ' options('--inputfile') ' not found...exiting.']);
+            end
             load(options('--inputfile'));
+            if ~exist('sample_data','var')
+                disp(['Sample ' options('--inputsample') ' not found...exiting.']);
+            end
             input_sample=sample_data(options('--inputsample'));
+            if ~exist(options('--ipfile'),'file')
+                disp(['File ' options('--ipfile') ' not found...exiting.']);
+            end
             load(options('--ipfile'));
+            if ~exist('sample_data','var')
+                disp(['Sample ' options('--ipsample') ' not found...exiting.']);
+            end
             ip_sample=sample_data(options('--ipsample'));
         else
             %load ip file
@@ -258,283 +232,8 @@ elseif strcmp(subr,'IPStrength')
         fprintf(f,'differential_percentage_enrichment,%g\n',100*(q-p));
         for j=1:length(s),fprintf(f,'%s\n',s{j});,end
         if f~=-1,fclose(f);end
-    end
-elseif strcmp(subr,'multiIPNorm')
-    if ~isempty(options('-p'))
-        %parameter file must be comma separated values
-        %file_name,sample_id,output_file,build,file_type
-        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s','Delimiter',',');fclose(f);
-        catch me, disp('error opening/parsing parameter file, please check file...'),end
-        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
-        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
-        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
-        clear chr_lens;
-        outf=D{3}{1};
-        for i=1:length(D{1})
-            ipf{i}=D{1}{i};smp_id{i}=D{2}{i};bld{i}=D{4}{i};typ{i}=D{5}{i};
-            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
-            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
-            else, chr_lens{i}=mm9_chr_lens;end
-        end
-        ip_samples_id=smp_id;
-        midx=find(strcmp(typ,'mat'));
-        nidx=setdiff([1:length(typ)],midx);
-        if ~isempty(nidx)
-            smpd(nidx)=par_bin_data(ipf(nidx),smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
-        end
-        for i=1:length(midx)
-            sample_data=[];
-            load(ipf{midx(i)});
-            smpd{midx(i)}=sample_data;
-        end
-        num_samples=length(smpd);
-        for i=1:num_samples
-            tmp=smpd{i};
-            ip_samples{i}=tmp(smp_id{i});
-            ipt=ip_samples{i};ipt=ipt.dens;
-            if i==1,kz=ipt.keys;
-            else, kz=intersect(kz,ipt.keys);end
-        end
-        %create the genome wide read density vector for each sample
-        for i=1:num_samples
-            ipt=ip_samples{i};ipt=ipt.dens;
-            ipl=[];for j=1:length(kz),ipl=[ipl;ipt(kz{j})];end
-            rS(:,i)=ipl;
-        end
-        mcnt=mean(sum(rS));ip_depths=sum(rS);
-        for i=1:length(ip_depths),rS(:,i)=rS(:,i)/ip_depths(i);end %normalize first by sequencing depth
-        w=fuse(rS);%compute weights via signal combiner
-        cons_ip=rS*w;
-        s1=cons_ip;
-        m=length(s1);
-        [ss1,idx]=sort(s1);
-        cs1=cumsum(ss1);
-        gz=max(find(ss1==0))+1;
-        ss1_cut=ss1(gz:end);
-        cs1_cut=cumsum(ss1_cut);
-        t={};
-        txt_out={'Differential enrichment:',''};txt_idx=1;
-        t{length(t)+1}=txt_out{end-1};
-        load('div_fdr.mat');%loads t==pvals and fdrs
-        for i=1:num_samples 
-            s2=rS(:,i);%reorder the sample with respect to the consensus order stat
-            s2r=s2(idx);
-            CS2(:,i)=cumsum(s2r);
-            %cut the leading zeros from signal is
-            s2r_cut=s2r(gz:end);
-            cs2_cut=cumsum(s2r_cut);
-            %compute the point of maximal difference for the cut dataset
-            [~,k(i)]=max(abs(cs1_cut/cs1_cut(end)-cs2_cut/cs2_cut(end)));
-            k(i)=k(i)+gz;
-            %compute the sig/bak cutoff, adding the zero bins back in and plot
-            p(i)=cs1(k(i))/cs1(end);q(i)=CS2(k(i),i)/CS2(end,i);
-            [~,pval(i),~,~]=bin_ent_stat(p(i),q(i));
-            if pval(i)>=max(pvs),fd(i)=max(fdrs);
-            elseif pval(i)<=min(pvs), fd(i)=min(fdrs);
-            else,fd(i)=interp1(pvs,fdrs,pval(i));end
-            ip_scale(i)=(mcnt/ip_depths(i))*(p(i)/q(i));
-            %text output
-            txt_out{txt_idx}=[ip_samples_id{i} ':'];txt_idx=txt_idx+1;t{length(t)+1}=[ip_samples_id{i} ':'];
-            txt_out{txt_idx}=['Scale ' ip_samples_id{i} ' by ' num2str(ip_scale(i))];txt_idx=txt_idx+1;
-            t{length(t)+1}=txt_out{end};
-            if fd(i)<=0.05
-                txt_out{txt_idx}='Significant differential enrichment from consensus,';txt_idx=txt_idx+1;
-                t{length(t)+1}=txt_out{end};
-                txt_out{txt_idx}=['q-value (pFDR): ' num2str(fd(i))];txt_idx=txt_idx+1;
-                t{length(t)+1}=txt_out{end};
-            else
-                txt_out{txt_idx}='Differential enrichment from consensus';txt_idx=txt_idx+1;t{length(t)+1}=txt_out{end};
-                txt_out{txt_idx}='does not appear significant,';txt_idx=txt_idx+1;t{length(t)+1}=txt_out{end};
-                txt_out{txt_idx}=['q-value (pFDR): ' num2str(fd(i))];txt_idx=txt_idx+1;t{length(t)+1}=txt_out{end};
-            end
-            txt_out{txt_idx}='';txt_idx=txt_idx+1;
-        end
-        %compute pairwise differential enrichment between samples at the point of maximum
-        %divergence from consensus 
-        diff_enrich=zeros(num_samples);diff_genom=zeros(num_samples);
-        kdiff=ones(num_samples);pdiff=ones(num_samples);qdiff=ones(num_samples);
-        for i=1:num_samples
-            for j=i+1:num_samples
-                [~,kdiff(i,j)]=max(abs(CS2(:,i)/CS2(end,i)-CS2(:,j)/CS2(end,j)));
-                pdiff(i,j)=CS2(kdiff(i,j),i)/CS2(end,i);qdiff(i,j)=CS2(kdiff(i,j),j)/CS2(end,j);
-                [~,pvaldiff(i,j),~,~]=bin_ent_stat(pdiff(i,j),qdiff(i,j));    
-                if pvaldiff(i,j)>=max(pvs),fddiff(i,j)=max(fdrs);
-                elseif pvaldiff(i,j)<=min(pvs), fddiff(i,j)=min(fdrs);
-                else,fddiff(i,j)=interp1(pvs,fdrs,pvaldiff(i,j));end
-                if fddiff(i,j)<=0.05 %if the differential enrichment is not significant than the percent enrichment figure is not meaningful
-                    diff_enrich(i,j)=abs(pdiff(i,j)-qdiff(i,j));diff_enrich(j,i)=diff_enrich(i,j);
-                    diff_genom(i,j)=1-kdiff(i,j)/m;diff_genom(j,i)=diff_genom(i,j);
-                end
-            end
-        end
-        for i=1:length(ip_samples_id)
-            tmp_str=ip_samples_id{i};
-            stp=strfind(tmp_str,' - # reads')-1;
-            if isempty(stp),stp=min(length(tmp_str),10);end
-            ssmp_id{i}=tmp_str(1:stp);
-        end
-        try, f=fopen(outf,'w');catch me, disp(['error opening output file ' outf]),end
-        for j=1:length(t),fprintf(f,'%s\n',t{j});,end
-        fprintf(f,'\n');
-        fprintf(f,'differential enrichment:\n');
-        for i=1:length(ssmp_id)-1,fprintf(f,'%s,',ssmp_id{i});end
-        fprintf(f,'%s\n',ssmp_id{end});
-        for i=1:size(diff_genom,1)
-            for j=1:size(diff_genom,2)-1
-                fprintf(f,'%g,',diff_genom(i,j));
-            end
-            fprintf(f,'%g\n',diff_genom(i,size(diff_genom,2)));
-        end
-        if f~=-1,fclose(f);end
-    end
-elseif strcmp(subr,'compENCODE')
-    if ~isempty(options('-p'))
-        %parameter file must be comma separated values
-        %IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,exp_id,output_file,build,file_type
-        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
-        catch me, disp('error opening/parsing parameter file, please check file...'),end
-        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
-        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
-        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
-        clear chr_lens;
-        for i=1:length(D{1})
-            ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
-            exp_id{i}=D{5}{i};outf{i}=D{6}{i};bld{i}=D{7}{i};typ{i}=D{8}{i};
-            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
-            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
-            else, chr_lens{i}=mm9_chr_lens;end
-        end
-        midx=find(strcmp(typ,'mat'));
-        nidx=setdiff([1:length(typ)],midx);
-        if ~isempty(nidx)
-            input_smpd(nidx)=par_bin_data(inputf(nidx),input_smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
-            ip_smpd(nidx)=par_bin_data(ipf(nidx),ip_smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
-        end
-        for i=1:length(midx)
-            sample_data=[];
-            load(ipf{midx(i)});
-            ip_smpd{midx(i)}=sample_data;
-            sample_data=[];
-            load(inputf{midx(i)});
-            input_smpd{midx(i)}=sample_data;
-        end
-        batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,exp_id,bld,outf) 
-    else
-        %valid options
-        %-b,-t,-o,-e,--ipfile,--ipsample,--inputfile,--inputsample
-        bld=options('-b');
-        if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
-            disp('valid build options are hg18, hg19, mm9, or tair10')
-            return;
-        end
-        typ=options('-t');
-        if isempty(typ)||~ismember(typ,{'bam','sam','bed','bowtie','tagAlign','mat'})
-            disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
-            return;
-        end
-        exp_id=options('--ipsample');
-        if isempty(exp_id),exp_id='my_sample';end
-        load([bld 'lengths.mat']);
-        if strcmp(options('-t'),'mat')
-            load(options('--inputfile'));
-            input_sample=sample_data(options('--inputsample'));
-            load(options('--ipfile'));
-            ip_sample=sample_data(options('--ipsample'));
-        else
-            [ip_dens,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--ipfile'),chr_lens,1000,typ);
-            [input_dens,nuc_freq,phred_hist,~,~]=make_density_from_file(options('--inputfile'),chr_lens,1000,typ);
-        end
-        if strcmp(bld,'hg19'),load('hg19_sn_models.mat');
-        else, load('mm9_sn_models.mat');end
-        [od,p]=find_tf_binding_odds(options('-e'),ip_dens,input_dens,1000,tf_beds,tf_dists);
-        t{1}=['Signal to noise ratio (SNR): ' num2str(od)];
-        t{2}=['The probability of observing the given SNR or less in the ENCODE database: ' num2str(p)];
-        t{3}=['A small probability indicates your data differs greatly from ENCODE datasets'];
-        try, f=fopen(options('-o'),'w');catch me, disp(['error opening output file ' options('-o')]),end
-        fprintf(f,'IP_file,%s\n',options('--ipfile'));fprintf(f,'Input_file,%s\n',options('--inputfile'));
-        fprintf(f,'IP_sample_id,%s\n',options('--ipsample'));fprintf(f,'Input_sample_id,%s\n',options('--inputsample'));
-        fprintf(f,'experiment_id,%s\n',exp_id);fprintf(f,'build,%s\n',bld);
-        fprintf(f,'odds_ratio,%g\n',od);fprintf(f,'probability,%g\n',p);
-        for j=1:length(t),fprintf(f,'%s\n',t{j});,end
-        if f~=-1,fclose(f);end
-    end
-elseif strcmp(subr,'spectrum')
-    if ~isempty(options('-p'))
-        %parameter file must be comma separated values
-        %file_name,sample_id,output_file,build,file_type
-        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s','Delimiter',',');fclose(f);
-        catch me, disp('error opening/parsing parameter file, please check file...'),end
-        load('hg18lengths.mat');hg18_chr_lens=chr_lens;
-        load('hg19lengths.mat');hg19_chr_lens=chr_lens;
-        load('mm9lengths.mat');mm9_chr_lens=chr_lens;
-        clear chr_lens;
-        for i=1:length(D{1})
-            ipf{i}=D{1}{i};smp_id{i}=D{2}{i};
-            outf{i}=D{3}{i};bld{i}=D{4}{i};typ{i}=D{5}{i};
-            if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
-            elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
-            else, chr_lens{i}=mm9_chr_lens;end
-        end
-        midx=find(strcmp(typ,'mat'));
-        nidx=setdiff([1:length(typ)],midx);
-        if ~isempty(nidx)
-            smpd(nidx)=par_bin_data(ipf(nidx),smp_id(nidx),bld(nidx),chr_lens(nidx),typ(nidx));
-        end
-        for i=1:length(midx)
-            sample_data=[];
-            load(ipf{midx(i)});
-            smpd{midx(i)}=sample_data;
-        end
-        batch_spectrum(smpd,ipf,smp_id,bld,outf) 
-    else
-        %valid options
-        %-b,-t,-o,-f,-s
-        bld=options('-b');
-        if isempty(bld)||~ismember(bld,{'hg18','hg19','mm9','tair10'})
-            disp('valid build options are hg18, hg19, mm9, or tair10')
-            return;
-        end
-        typ=options('-t');
-        if isempty(typ)||~ismember(typ,{'bam','sam','bed','bowtie','tagAlign','mat'})
-            disp('valid file type options are bam, sam, bed, bowtie, tagAlign, or mat')
-            return;
-        end
-        load([bld 'lengths.mat']);
-        outf=options('-o');
-        if isempty(outf),disp('no output file specified'),return;end
-        if strcmp(options('-t'),'mat')
-            load(options('-f'));
-            smp=sample_data(options('-s'));
-            dens=smp.dens;
-        else
-            [dens,nuc_freq,phred_hist,~,~]=make_density_from_file(options('-f'),chr_lens,1000,typ);
-        end
-        Smpl=[];chrs=dens.keys;
-        for j=1:length(chrs),Smpl=[Smpl;dens(chrs{j})];end
-        [c,l]=wavedec(Smpl,15,'haar');
-        [eau,ed_inp]=wenergy(c,l);
-        smp_hist=ed_inp'/sum(ed_inp);
-        t{1}=['apx_coef_energy_user,' num2str(eau)];
-        d=fitdist(max(Smpl,1),'gamma');
-        sim_data=poissrnd(d.random(length(Smpl),1));
-        [c,l]=wavedec(sim_data(find(~isnan(sim_data))),15,'haar');
-        [eas,ed_sim]=wenergy(c,l);
-        sim_hist=ed_sim'/sum(ed_sim);
-        t{2}=['apx_coef_energy_sim' num2str(eas)];
-        try, f=fopen(outf,'w');catch me, disp(['error opening output file ' outf]),end
-        fprintf(f,'user_file,%s\n',options('-f'));fprintf(f,'sample_id,%s\n',options('-s'));
-        fprintf(f,'bld,%s\n',options('-b'));
-        for j=1:length(t),fprintf(f,'%s\n',t{j});,end
-        if f~=-1,fclose(f);end
-        otf=outf;
-        lst=strfind(otf,'.')-1;
-        if isempty(lst),lst=length(otf);end
-        otf=otf(1:lst);
-        csvwrite([otf,'_user_hist.csv'],smp_hist);
-        csvwrite([otf,'_sim_hist.csv'],sim_hist);
-    end      
-    matlabpool close;
 end
+matlabpool close;
 
 function out=batch_spectrum(smpd,inputf,smp_id,bld,outf)
 s=cell(length(smpd),1);
@@ -794,6 +493,40 @@ parfor i=1:length(fin)
         end
 end
 
+function bidx=batch_effects(input_smpd,input_smp_id)
+    num_samples=length(input_smpd);
+    for i=1:num_samples %create a matrix of genome wide 
+        ipt=input_smpd{i};ipt=ipt(input_smp_id{i});ipt=ipt.dens;
+        ipl=[];for j=1:length(kz),ipl=[ipl;ipt(kz{j})];end
+        rS(:,i)=ipl;
+    end
+    mcnt=mean(sum(rS));ip_depths=sum(rS);
+    for i=1:length(ip_depths),rS(:,i)=rS(:,i)/ip_depths(i);end %normalize first by sequencing depth
+    w=fuse(rS);%compute weights via signal combiner
+    cons_ip=rS*w;
+    s1=cons_ip;
+    m=length(s1);
+    [ss1,idx]=sort(s1);
+    cs1=cumsum(ss1);
+    gz=max(find(ss1==0))+1;
+    ss1_cut=ss1(gz:end);
+    cs1_cut=cumsum(ss1_cut);
+    for i=1:num_samples 
+        s2=rS(:,i);%reorder the sample with respect to the consensus order stat
+        s2r=s2(idx);
+        CS2(:,i)=cumsum(s2r);
+        %cut the leading zeros
+        s2r_cut=s2r(gz:end);
+        cs2_cut=cumsum(s2r_cut);
+        %compute the point of maximal difference for the cut dataset
+        [~,k(i)]=max(abs(cs1_cut/cs1_cut(end)-cs2_cut/cs2_cut(end)));
+        k(i)=k(i)+gz;
+        %compute pairwise differential enrichment between samples at the point of maximum
+        %divergence from consensus 
+    end     
+    Y=pdist(CS2',@(Xi,Xj), max(abs(Xi/Xi(end)-Xj/Xj(end))));
+    Z=linkage(Y,'single');
+    bidx=cluster(Z,'cutoff',1,'depth',2);
 
 function out=disp_help()
 s=sprintf('CHANCE usage:\n');
@@ -801,10 +534,6 @@ s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -b build -t file_type -s sample
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -p parameters_file\n')];
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR IPStrength -b build -t file_type -o output_file --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR IPStrength -p parameters_file\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR multiIPNorm -p parameters_file\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR compENCODE -b build -t file_type -o output_file -e experiment_type --ipfile IP_file_name (--ipsample IP_sample_name) --inputfile input_file_name (--inputsample input_sample_name)\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR compENCODE -p parameters_file\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR spectrum -b build -t file_type (-s sample_id) -o output_file -f file_name -s sample_id\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR spectrum -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR batch -p parameters_file\n')];
 disp(s);
 out=0; 
