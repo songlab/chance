@@ -441,10 +441,14 @@ end
 function bidx=batch_effects(input_smpd,input_smp_id)
     num_samples=length(input_smpd);
     for i=1:num_samples %create a matrix of genome wide 
-        ipt=input_smpd{i};ipt=ipt(input_smp_id{i});ipt=ipt.dens;
+        ipt=input_smpd{i};ipt=ipt(input_smp_id{i});
+        ipt=ipt.dens;kz=ipt.keys;
         ipl=[];for j=1:length(kz),ipl=[ipl;ipt(kz{j})];end
-        rS(:,i)=ipl;
+        iplt{i}=ipl;
     end
+    tmx=0;for i=1:length(iplt),tmx=max(tmx,length(iplt{i}));end
+    rS=zeros(tmx,length(iplt));
+    for i=1:length(iplt),rS(1:length(iplt{i}),i)=iplt{i}; end
     mcnt=mean(sum(rS));ip_depths=sum(rS);
     for i=1:length(ip_depths),rS(:,i)=rS(:,i)/ip_depths(i);end %normalize first by sequencing depth
     w=fuse(rS);%compute weights via signal combiner
@@ -468,10 +472,11 @@ function bidx=batch_effects(input_smpd,input_smp_id)
         k(i)=k(i)+gz;
         %compute pairwise differential enrichment between samples at the point of maximum
         %divergence from consensus 
-    end     
-    Y=pdist(CS2',@(Xi,Xj), max(abs(Xi/Xi(end)-Xj/Xj(end))));
+    end    
+    Y=pdist(CS2',@dist_fun);
     Z=linkage(Y,'single');
-    bidx=cluster(Z,'cutoff',1,'depth',2);
+    bidx=cluster(Z,'cutoff',.1,'depth',2);
+    
 
 function out=disp_help()
 s=sprintf('CHANCE usage:\n');
