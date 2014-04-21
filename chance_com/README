@@ -1,29 +1,34 @@
 *********************************************************
 USAGE SUMMARY:
 
-run_chance.sh /PATH/TO/MCR batch -p parameter_file -o output_file
+run_chance.sh /PATH/TO/MCR batch -p parameter_file -o output_file (-b on/off)
 
-Note: parameter_file and output_file should be the full paths to the respective files.
-
+Notes: 1. parameter_file and output_file should be the full paths to the respective files.
+       2. The -b parameter is optional, it toggles batch effects detection, the default is "on".
+       3. There is also an auxillary sub-routine to bin reads which can be accessed directly. 
+       The invocation is : run_chance.sh /PATH/TO/MCR batch binData -p parameter_file
+       This can be useful if you plan to run CHANCE multiple times on the same files, since
+       the binned reads take much less memory and time to read. Also, the binary format (.mat)
+       that this routine produces can be read by the GUI version of CHANCE. The parameter file
+       format for this subroutine is: alignments_file_name,output_file_name,sample_id,build,file_type  
 *********************************************************
 PARAMETER FILE FORMAT:
 
 The parameter file are comma separated values with no headers. Place one line per file to process. Each line must have the following format:
 
-IP_file_name,Input_file_name,IP_sample_ID,Input_sample_ID,TF_name,Build,File_type
+IP_file_name,Input_file_name,IP_sample_ID,Input_sample_ID,Build,File_type
 
 IP_file_name : the full path to the IP sample
 Input_file_name : the full path to the Input sample
 IP_sample_ID : any string, will identify the IP sample in the CHANCE output file
 Input_sample_ID : any string, will identify the Input sample in the CHANCE output file
-TF_name : a string identifying the transcription factor or epigenetic mark ChIP'ed for
-Build: a string indicating the organism, either "hg19" or "mm9"
-File_type : a string indicating the type of file storing the alignments, one of: "bam", "sam", "bowtie", "bed", "tagAlign", or "mat". BAM file format is fastest aside from MAT, which is the matlab format for samples saved from a CHANCE gui session.
+Build : hg18, hg19, mm9 or tair10
+File_type : a string indicating the type of file storing the alignments, one of: "bam", "sam", "bowtie", "bed", "tagAlign", or "mat". BAM file format is fastest aside from MAT, which is the matlab format for samples saved from a CHANCE gui session or a call to binData
 
 *********************************************************
 CHANCE OUTPUT FILE FORMAT:
 
-CHANCE outputs two files output_file and output_file.msg. 
+CHANCE outputs two files output_file and output_file.msg.
 output_file is a tab separated values file with the following fields:
 
 IP : the ID string of the IP sample
@@ -37,6 +42,11 @@ p-value : the p-value for the divergence test used to classify sample
 	FDRs computed by CHANCE)
 FDR : this is a q-value (positive FDR) defined as the minimum q-value (Fisher's method)
     computed over any of the following 5 subsets of ENCODE training data
+IP_strength : percentage enrichment of IP over Input, as a fraction from 0 to 1
+	    This and Percent_genome_enriched are essentially the test statistics
+	    which are implicitly used to determine the p-value and subsequently
+	    the FDR.
+Percent_genome_enriched : percentage of the genome differentially enriched
 FDR_cancer_tfbs : FDR for transcription factor binding site ChIPs in cancer cells
 FDR_cancer_histone : FDR for epigenetic mark ChIPs in cancer cells
 FDR_cancer_tfbs : FDR for transcription factor binding site ChIPs in normal cells
@@ -44,7 +54,14 @@ FDR_cancer_tfbs : FDR for epigenetic mark ChIPs in normal cells
 FDR_cancer_tfbs : FDR for the combined dataset
 Input_bias : a test statistic measuring bias in the sample, when this metric is high the
 	   ChIP may have worked but the sample will have low statistical power due
-	   to bias in the library preparation.
-Input_bias_pvalue : a p-value for the Input_bias test statistic 
-
-output_file.msg is a descriptive file with one entry per sample. Each entry contains error messages and warnings regarding the sample, scaling factors, and other descriptive metrics.
+	   to bias in the library preparation. This tests for bi-modality in the frequency-
+	   response of the Input channel read-density. Bi-modality indicates systematic
+	   bias in read-density which can be introduced for example by some chromatin
+	   sonnication methods.
+Input_bias_pvalue : a p-value for the Input_bias test statistic, when this is low there is
+		  a significant bias in the Input channel 
+batch : An integer from 1 to the number of samples. If the same index is repeated then there 
+      may be batch-effects and the samples with the same index may have come from the same batch.
+      This routine only checks for batch-effects in the Input channel.
+      
+output_file.msg is a descriptive file with one entry per sample. Each entry contains error messages and warnings regarding the sample, scaling factors, and other descriptive metrics such as indicators of zero-inflation in the IP or Input channels or very high duplication levels indicating possible PCR bias. If you see a failed sample in the TSV file you might want to check that sample's entry in this file for more information.

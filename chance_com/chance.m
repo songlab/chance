@@ -15,7 +15,7 @@ if ~ismember(subr,cmds)|isempty(varargin),disp_help();return;end
 if strcmp(subr,'binData')
     options = containers.Map({'-p','-b','-t','-s','-o','-f'},{[],[],[],[],[],[]});
 elseif strcmp(subr,'batch')
-    options = containers.Map({'-p','-o'},{[],[]});
+    options = containers.Map({'-p','-o','-b'},{[],[],[]});
 end
 optionNames = options.keys;
 nArgs = length(varargin);
@@ -87,8 +87,8 @@ if strcmp(subr,'binData')
         save(outf,'sample_data');
     end
 elseif strcmp(subr,'batch')
-    %parameter file format: IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,tf_name,build,file_type
-        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s%s','Delimiter',',');fclose(f);
+    %parameter file format: IP_file_name,Input_file_name,IP_sample_id,Input_sample_id,build,file_type
+        try, f=fopen(options('-p'));D=textscan(f,'%s%s%s%s%s%s','Delimiter',',');fclose(f);
         catch me, disp('error opening/parsing parameter file, please check file...'),end
         load('hg18lengths.mat');hg18_chr_lens=chr_lens;
         load('hg19lengths.mat');hg19_chr_lens=chr_lens;
@@ -96,7 +96,7 @@ elseif strcmp(subr,'batch')
         clear chr_lens;
         for i=1:length(D{1})%set up data structures for sample data/metadata
             ipf{i}=D{1}{i};inputf{i}=D{2}{i};ip_smp_id{i}=D{3}{i};input_smp_id{i}=D{4}{i};
-            tf_name{i}=D{5}{i};bld{i}=D{6}{i};typ{i}=D{7}{i};
+            bld{i}=D{5}{i};typ{i}=D{6}{i};
             if strcmpi(bld{i},'hg18'),chr_lens{i}=hg18_chr_lens;
             elseif strcmpi(bld{i},'hg19'), chr_lens{i}=hg19_chr_lens;
             else, chr_lens{i}=mm9_chr_lens;end
@@ -127,16 +127,21 @@ elseif strcmp(subr,'batch')
         end
         snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
         %        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
-        bidx=batch_effects(input_smpd,input_smp_id);
+        if isempty(options('-b'))||strcmpi(options('-b'),'off')
+            bidx=ones(length(input_smp_id),1);
+            [~,ip_scale]=multisample_norm(input_smpd,input_smp_id);
+        else
+            [bidx,ip_scale]=multisample_norm(input_smpd,input_smp_id);
+        end
         spc=batch_spectrum(input_smpd,inputf,input_smp_id,bld,[]);
         if isKey(options,'-o')&&~isempty(options('-o')), outf=options('-o');
         else, outf='chance_output.txt';end
         f=fopen(outf,'a');
         fprintf(f,['IP\tInput\ttest\tp-value\tFDR\t' ...
-                   'FDR_cancer_tfbs\tFDR_cancer_histone\t' ...
+                   'IP_strength\tPercent_genome_enriched\tFDR_cancer_tfbs\tFDR_cancer_histone\t' ...
                    'FDR_normal_tfbs\tFDR_normal_histone\tFDR_comb\t' ...
-                   'Input_bias\tInput_bias_pvlaue\tbatch\n']);
-        pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;
+                   'Input_bias\tInput_bias_pvlaue\tscaling_factor\tbatch\n']);
+        pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;k=snrs.k;m=snrs.m;
         dip=spc.dip;dip_p=spc.pval;
         for i=1:length(snrs.fdrs) %write the results to a tsv-file
             fd=fdrs{i};
@@ -148,6 +153,8 @@ elseif strcmp(subr,'batch')
             else, fprintf(f,'FAIL\t'); end
             fprintf(f,'%g\t',pvals{i});
             fprintf(f,'%g\t',mfdr);
+            fprintf(f,'%g\t',q{i}-p{i});
+            fprintf(f,'%g\t',1-k{i}/m{i});
             fprintf(f,'%g\t',fd('tfbs_cancer'));
             fprintf(f,'%g\t',fd('histone_cancer'));
             fprintf(f,'%g\t',fd('tfbs_normal'));
@@ -157,6 +164,7 @@ elseif strcmp(subr,'batch')
             %            fprintf(f,'%g\t',enc_p{i});
             fprintf(f,'%g\t',dip{i});
             fprintf(f,'%g\t',dip_p{i});
+            fprintf(f,'%g\t',ip_scale(i));
             fprintf(f,'%i\n',bidx(i));
         end
         fclose(f);
@@ -275,7 +283,7 @@ end
 out.fdrs=fdl; %cell array of FDR estimate maps, cf. f=fdrs{i},f.keys
 out.ht=htl; %hypothesis test for enrichment 
 out.err_str=s; %error messages
-out.k=kl; %k/m is the fraction of bins enriched for signal
+out.k=kl; %1-k/m is the fraction of bins enriched for signal
 out.m=ml;
 out.sz_ip=sz_ipl;%IP seq depth
 out.sz_input=sz_inputl;%Input seq depth
@@ -438,7 +446,7 @@ parfor i=1:length(fin)
         end
 end
 
-function bidx=batch_effects(input_smpd,input_smp_id)
+function [bidx,ip_scale]=multisample_norm(input_smpd,input_smp_id)
     num_samples=length(input_smpd);
     for i=1:num_samples %create a matrix of genome wide 
         ipt=input_smpd{i};ipt=ipt(input_smp_id{i});
@@ -470,18 +478,23 @@ function bidx=batch_effects(input_smpd,input_smp_id)
         %compute the point of maximal difference for the cut dataset
         [~,k(i)]=max(abs(cs1_cut/cs1_cut(end)-cs2_cut/cs2_cut(end)));
         k(i)=k(i)+gz;
+        p(i)=cs1(k(i))/cs1(end);q(i)=CS2(k(i),i)/CS2(end,i);
+        ip_scale(i)=(mcnt/ip_depths(i))*(p(i)/q(i));
         %compute pairwise differential enrichment between samples at the point of maximum
         %divergence from consensus 
     end    
     Y=pdist(CS2',@dist_fun);
-    Z=linkage(Y,'single');
-    bidx=cluster(Z,'cutoff',.1,'depth',2);
-    
+    Z=linkage(Y,'ward');
+    bidx=cluster(Z,'cutoff',quantile(Y,.1),'criterion','distance');
 
 function out=disp_help()
 s=sprintf('CHANCE usage:\n');
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -b build -t file_type -s sample_id -o output_file -f file\n')];
 s=[s,sprintf('run_chance.sh /PATH/TO/MCR binData -p parameters_file\n')];
-s=[s,sprintf('run_chance.sh /PATH/TO/MCR batch -p parameters_file\n')];
+s=[s,sprintf('run_chance.sh /PATH/TO/MCR batch -p parameters_file -o output_file (-b on/off)\n')];
+s=[s,sprintf('binData parameters TSV file format:\n')];
+s=[s,sprintf('alignments_file_name\toutput_file_name\tsample_id\tbuild\tfile_type\n')]
+s=[s,sprintf('batch parameters TSV file format:\n')];
+s=[s,sprintf('IP_file_name\tInput_file_name\tIP_sample_id\tInput_sample_id\tbuild\tfile_type\n')]
 disp(s);
 out=0; 
