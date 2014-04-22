@@ -125,6 +125,7 @@ elseif strcmp(subr,'batch')
             load(inputf{midx(i)});
             input_smpd{midx(i)}=sample_data;
         end
+        %compute IP strengths, compare with ENCODE (needs retraining), 
         snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
         %        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
         if isempty(options('-b'))||strcmpi(options('-b'),'off')
