@@ -128,11 +128,11 @@ elseif strcmp(subr,'batch')
         %compute IP strengths, compare with ENCODE (needs retraining), 
         snrs=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,[]);
         %        enc=batch_comp_encode(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,tf_name,bld,[]);
-        if isempty(options('-b'))||strcmpi(options('-b'),'off')
-            bidx=ones(length(input_smp_id),1);
-            [~,ip_scale]=multisample_norm(input_smpd,input_smp_id);
+        if isempty(options('-b'))||~strcmpi(options('-b'),'off')
+            [bidx,input_scale]=multisample_norm(input_smpd,input_smp_id);            
         else
-            [bidx,ip_scale]=multisample_norm(input_smpd,input_smp_id);
+            bidx=ones(length(input_smp_id),1);
+            [~,input_scale]=multisample_norm(input_smpd,input_smp_id);
         end
         spc=batch_spectrum(input_smpd,inputf,input_smp_id,bld,[]);
         if isKey(options,'-o')&&~isempty(options('-o')), outf=options('-o');
@@ -141,8 +141,8 @@ elseif strcmp(subr,'batch')
         fprintf(f,['IP\tInput\ttest\tp-value\tFDR\t' ...
                    'IP_strength\tPercent_genome_enriched\tFDR_cancer_tfbs\tFDR_cancer_histone\t' ...
                    'FDR_normal_tfbs\tFDR_normal_histone\tFDR_comb\t' ...
-                   'Input_bias\tInput_bias_pvlaue\tscaling_factor\tbatch\n']);
-        pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;k=snrs.k;m=snrs.m;
+                   'Input_bias\tInput_bias_pvlaue\tip_scaling_factor\tinput_scaling_factor\tbatch\n']);
+        pvals=snrs.pval;fdrs=snrs.fdrs;p=snrs.p;q=snrs.q;k=snrs.k;m=snrs.m;sz_ip=snrs.sz_ip;sz_input=snrs.sz_input;
         dip=spc.dip;dip_p=spc.pval;
         for i=1:length(snrs.fdrs) %write the results to a tsv-file
             fd=fdrs{i};
@@ -165,9 +165,13 @@ elseif strcmp(subr,'batch')
             %            fprintf(f,'%g\t',enc_p{i});
             fprintf(f,'%g\t',dip{i});
             fprintf(f,'%g\t',dip_p{i});
+            ip_scale(i)=(q{i}*sz_input{i}*input_scale(i))/(p{i}*sz_ip{i});
             fprintf(f,'%g\t',ip_scale(i));
+            fprintf(f,'%g\t',input_scale(i));
             fprintf(f,'%i\n',bidx(i));
         end
+keyboard()
+
         fclose(f);
         try, f=fopen([outf '.msg'],'a'); catch me, end
         for i=1:length(snrs.err_str) %write detailed error msgs to a separate file
@@ -274,6 +278,18 @@ end
 function out=batch_ip_strength(input_smpd,ip_smpd,inputf,ipf,input_smp_id,ip_smp_id,outf)
 s=cell(length(input_smpd),1);%s{i} is a cell array of strings holding the result of the test to be stored in outf{i}
 fdl=s;htl=s;kl=s;ml=s;sz_ipl=s;sz_inputl=s;pl=s;ql=s;pvall=s;
+for i=1:length(s)
+    input_sample=containers.Map;ip_sample=containers.Map;                                                                       
+    input_sample=input_smpd{i};ip_sample=ip_smpd{i};
+    if ~isKey(input_sample,input_smp_id{i})
+        disp(['Error loading sample from line ' num2str(i) '. Sample ID ' ...
+              input_smp_id{i} ' is not found.'])
+    end
+    if ~isKey(ip_sample,ip_smp_id{i})
+        disp(['Error loading sample from line ' num2str(i) '. Sample ID ' ...
+              ip_smp_id{i} ' is not found.'])
+    end
+end
 parfor i=1:length(s)
     input_sample=containers.Map;ip_sample=containers.Map;
     input_sample=input_smpd{i};ip_sample=ip_smpd{i};
@@ -486,7 +502,10 @@ function [bidx,ip_scale]=multisample_norm(input_smpd,input_smp_id)
     end    
     Y=pdist(CS2',@dist_fun);
     Z=linkage(Y,'ward');
-    bidx=cluster(Z,'cutoff',quantile(Y,.1),'criterion','distance');
+    bidx=cluster(Z,'cutoff',.1);
+keyboard()
+%bidx=cluster(Z,'cutoff',quantile(Y,.1),'criterion','distance');
+
 
 function out=disp_help()
 s=sprintf('CHANCE usage:\n');
