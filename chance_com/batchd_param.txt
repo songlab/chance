@@ -1,0 +1,8 @@
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Hek293Pol2StdAlnRep1.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Hek293InputStdAlnRep1.mat,Hek293Pol2StdAlnRep1,Hek293InputStdAlnRep1,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Hek293Pol2StdAlnRep2.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Hek293InputStdAlnRep1.mat,Hek293Pol2StdAlnRep2,Hek293InputStdAlnRep1,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Hek293Pol2StdAlnRep3.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Hek293InputStdAlnRep1.mat,Hek293Pol2StdAlnRep3,Hek293InputStdAlnRep1,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecPol2StdAlnRep1.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecInputStdAlnRep1.mat,HuvecPol2StdAlnRep1,HuvecInputStdAlnRep1,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecPol2StdAlnRep2.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecInputStdAlnRep2.mat,HuvecPol2StdAlnRep2,HuvecInputStdAlnRep2,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecPol2StdAlnRep3.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/HuvecInputUcdAlnRep1.mat,HuvecPol2StdAlnRep3,HuvecInputUcdAlnRep1,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Imr90Pol2IggrabAlnRep1.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Imr90InputIggrabAlnRep1.mat,Imr90Pol2IggrabAlnRep1,Imr90InputIggrabAlnRep1,hg19,mat
+/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Imr90Pol2IggrabAlnRep2.mat,/songlab/aaron/research/fun_genom/data/yale_chipseq/normal/Imr90InputIggrabAlnRep1.mat,Imr90Pol2IggrabAlnRep2,Imr90InputIggrabAlnRep1,hg19,mat
